@@ -1,0 +1,537 @@
+import { useState, useRef } from "react";
+
+const CLOUDINARY_CLOUD_NAME    = "dw4clwa2b";
+const CLOUDINARY_UPLOAD_PRESET = "yo man";
+
+const categories = [
+  { id: "immobilier",   label: "Immobilier",   icon: "🏠" },
+  { id: "vehicules",    label: "Véhicules",    icon: "🚗" },
+  { id: "electronique", label: "Électronique", icon: "📱" },
+];
+
+const INIT_ANNONCES = [
+  { id:1, categorie:"immobilier",   titre:"Villa F4 à Ouaga 2000",    prix:"85 000 000 FCFA", ville:"Ouagadougou",    quartier:"Ouaga 2000",  description:"Belle villa de 4 pièces avec piscine, garage 2 voitures, jardin arboré.", whatsapp:"22670000001", date:"Il y a 2 jours", vendeur:"Moussa K.",  urgent:true,  emoji:"🏡", userId:1, photos:[] },
+  { id:2, categorie:"vehicules",    titre:"Toyota Land Cruiser 2019", prix:"18 500 000 FCFA", ville:"Bobo-Dioulasso", quartier:"Secteur 22",  description:"Land Cruiser V8 en excellent état, full options, 45 000 km. Dédouané.",  whatsapp:"22671000002", date:"Il y a 1 jour",  vendeur:"Aminata S.", urgent:false, emoji:"🚙", userId:2, photos:[] },
+  { id:3, categorie:"electronique", titre:"iPhone 14 Pro Max 256Go",  prix:"450 000 FCFA",    ville:"Ouagadougou",    quartier:"Pissy",       description:"iPhone 14 Pro Max couleur Or. Acheté en Europe, sous garantie.",         whatsapp:"22672000003", date:"Il y a 3 h",     vendeur:"Ibrahim T.", urgent:true,  emoji:"📱", userId:3, photos:[] },
+  { id:4, categorie:"immobilier",   titre:"Terrain 600m² à Tanghin",  prix:"12 000 000 FCFA", ville:"Ouagadougou",    quartier:"Tanghin",     description:"Terrain viabilisé, titre foncier disponible. Idéal pour construction.",  whatsapp:"22673000004", date:"Il y a 5 jours", vendeur:"Fatou D.",   urgent:false, emoji:"🌍", userId:4, photos:[] },
+  { id:5, categorie:"electronique", titre:"MacBook Pro M2 2023",      prix:"1 200 000 FCFA",  ville:"Ouagadougou",    quartier:"Zone du Bois",description:"MacBook Pro 13\" M2, 16 Go RAM, 512 Go SSD. Très peu utilisé.",          whatsapp:"22674000005", date:"Il y a 1 sem.",  vendeur:"Seydou B.",  urgent:false, emoji:"💻", userId:5, photos:[] },
+  { id:6, categorie:"vehicules",    titre:"Moto Jakarta 125cc 2022",  prix:"650 000 FCFA",    ville:"Koudougou",      quartier:"Centre",      description:"Moto en bon état, révision faite. Carte grise et assurance incluses.",   whatsapp:"22675000006", date:"Il y a 2 jours", vendeur:"Adama W.",   urgent:false, emoji:"🏍️", userId:6, photos:[] },
+];
+
+const INIT_USERS = [{ id:1, nom:"Moussa Kaboré", tel:"70000001", whatsapp:"22670000001", password:"1234" }];
+const catEmojis  = { immobilier:"🏡", vehicules:"🚗", electronique:"📱" };
+const villes     = ["Ouagadougou","Bobo-Dioulasso","Koudougou","Ouahigouya","Banfora","Dédougou","Fada N'Gourma","Tenkodogo"];
+const waLink     = (num, titre) => `https://wa.me/${num}?text=${encodeURIComponent(`Bonjour ! Je suis intéressé(e) par votre annonce "${titre}" sur YoMan!`)}`;
+
+async function uploadToCloudinary(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { method:"POST", body:fd });
+  const data = await res.json();
+  if (data.secure_url) return data.secure_url;
+  throw new Error(data.error?.message || "Upload échoué");
+}
+
+// ── LOGO SVG — inspiré du logo YoMan! (sac + poignée de main) ─
+const YoManLogo = ({ variant = "white", height = 48 }) => {
+  const isWhite = variant === "white";
+  const bagBlue  = isWhite ? "rgba(255,255,255,0.22)" : "#1756C8";
+  const bagDark  = isWhite ? "rgba(255,255,255,0.38)" : "#0A2463";
+  const bagBorder= isWhite ? "rgba(255,255,255,0.6)"  : "#0A2463";
+  const handleC  = "#FFD93D";
+  const textYo   = isWhite ? "#FFFFFF"                : "#0A2463";
+  const textMan  = isWhite ? "#FFD93D"                : "#1756C8";
+  const subBg    = isWhite ? "rgba(255,255,255,0.18)" : "#1756C8";
+  const subText  = isWhite ? "#FFD93D"                : "#FFFFFF";
+
+  const w = height * 3.2;
+  return (
+    <svg width={w} height={height} viewBox="0 0 228 60" fill="none" xmlns="http://www.w3.org/2000/svg" style={{maxWidth:"100%"}}>
+      {/* ── Sac shopping ── */}
+      {/* Corps du sac */}
+      <rect x="2" y="20" width="46" height="36" rx="5" fill={bagBlue} stroke={bagBorder} strokeWidth="2"/>
+      {/* Côté droit du sac (volume) */}
+      <rect x="43" y="23" width="8" height="30" rx="3" fill={bagDark} opacity="0.5"/>
+      {/* Poignée gauche */}
+      <path d="M13 20 C13 10 22 6 25 6 C28 6 37 10 37 20" stroke={handleC} strokeWidth="4" strokeLinecap="round" fill="none"/>
+      {/* Brillance sac */}
+      <rect x="6" y="24" width="8" height="18" rx="3" fill="white" opacity="0.18"/>
+      {/* Étoile brillance */}
+      <path d="M46 22 L47.5 19 L49 22 L52 23.5 L49 25 L47.5 28 L46 25 L43 23.5 Z" fill={handleC} opacity="0.9"/>
+
+      {/* ── Texte YoMan! ── */}
+      <text x="60" y="30" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="22" fill="white" stroke={textMan} strokeWidth="1.2" paintOrder="stroke" letterSpacing="-1">Yo</text>
+      <text x="88" y="30" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="22" fill={textMan} letterSpacing="-1">Man!</text>
+
+      {/* ── Bandeau tagline ── */}
+      <rect x="60" y="36" width="162" height="18" rx="9" fill={subBg}/>
+      <text x="141" y="49" fontFamily="'Montserrat',sans-serif" fontWeight="700" fontSize="8" fill={subText} letterSpacing="0.8" textAnchor="middle">· ENTRE PARTICULIERS ·</text>
+    </svg>
+  );
+};
+
+// ── Logo icône seul (pour favicon / splash) ────────────────────
+const YoManIcon = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="60" rx="14" fill="#1756C8"/>
+    <rect x="8" y="22" width="38" height="30" rx="4" fill="#2A6FD8" stroke="#0A2463" strokeWidth="1.5"/>
+    <rect x="40" y="25" width="7" height="24" rx="3" fill="#0A2463" opacity="0.45"/>
+    <path d="M18 22 C18 13 24 9 27 9 C30 9 36 13 36 22" stroke="#FFD93D" strokeWidth="3.5" strokeLinecap="round" fill="none"/>
+    <rect x="10" y="26" width="7" height="14" rx="2.5" fill="white" opacity="0.15"/>
+    <g transform="translate(10,29)">
+      <path d="M1 10 C1 7 3.5 6 6 6.5 L13 6.5 C14.5 6.5 15.5 7.5 15.5 9 L15.5 14 C15.5 15.5 14.5 16.5 13 16.5 L4 16.5 C2.5 16.5 1 15 1 13 Z" fill="white" opacity="0.92"/>
+      <path d="M15.5 7.5 C17 5.5 20 5.5 21.5 7.5 L26.5 13 C28 15 27 17.5 25 18.5 L18 18.5 C16.5 18.5 15.5 17 15.5 15 Z" fill="white" opacity="0.75"/>
+      <circle cx="15.5" cy="11" r="3.5" fill="white" opacity="0.95"/>
+      <path d="M5 6.5 L5 3 M8.5 6.5 L8.5 2.5 M12 6.5 L12 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.65"/>
+    </g>
+    <path d="M42 20 L43 17.5 L44 20 L46.5 21 L44 22 L43 24.5 L42 22 L39.5 21 Z" fill="#FFD93D"/>
+  </svg>
+);
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Nunito:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --blue:#1756C8; --dark:#0A2463; --sky:#38CFFF;
+    --gold:#FFD93D; --bg:#F0F5FF; --text:#0D1B3E;
+    --muted:#6B80A8; --border:#D6E4FF;
+  }
+  body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); }
+  .app { min-height:100vh; }
+
+  .hdr { background:linear-gradient(135deg,var(--dark),var(--blue)); padding:0 20px; position:sticky; top:0; z-index:100; box-shadow:0 4px 24px rgba(10,36,99,.28); }
+  .hdr-in { max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:66px; }
+  .hdr-r { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .huser { font-size:13px; color:rgba(255,255,255,.75); }
+  .huser strong { color:var(--gold); }
+  .btn-p { background:var(--gold); color:var(--dark); border:none; border-radius:10px; padding:9px 18px; font-size:13px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; }
+  .btn-p:hover { background:#FFC800; transform:translateY(-1px); box-shadow:0 4px 14px rgba(255,217,61,.4); }
+  .btn-o { background:rgba(255,255,255,.12); color:white; border:1.5px solid rgba(255,255,255,.25); border-radius:10px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Nunito',sans-serif; transition:all .2s; }
+  .btn-o:hover { background:rgba(255,255,255,.22); }
+
+  /* AUTH */
+  .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(145deg,var(--dark) 0%,#0D3380 45%,var(--blue) 75%,#38CFFF 100%); }
+  .auth-box { background:white; border-radius:28px; padding:36px 32px; max-width:400px; width:100%; box-shadow:0 32px 80px rgba(10,36,99,.38); animation:fadeUp .5s ease; }
+  @keyframes fadeUp { from{transform:translateY(28px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .auth-logo-wrap { display:flex; justify-content:center; margin-bottom:20px; overflow:hidden; width:100%; }
+  .tabs { display:flex; background:var(--bg); border-radius:12px; padding:4px; margin-bottom:22px; gap:4px; }
+  .tab { flex:1; padding:9px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; border:none; background:transparent; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
+  .tab.on { background:var(--blue); color:white; box-shadow:0 4px 12px rgba(23,86,200,.3); }
+  .fg { margin-bottom:14px; }
+  .fl { display:block; font-size:12px; font-weight:700; color:var(--dark); margin-bottom:5px; }
+  .fi { width:100%; padding:12px 14px; border:2px solid var(--border); border-radius:10px; font-size:14px; font-family:'Nunito',sans-serif; outline:none; background:var(--bg); color:var(--text); transition:border-color .2s; }
+  .fi:focus { border-color:var(--blue); background:white; }
+  .fs { width:100%; padding:12px 14px; border:2px solid var(--border); border-radius:10px; font-size:14px; font-family:'Nunito',sans-serif; outline:none; background:var(--bg); color:var(--text); }
+  .fta { width:100%; padding:12px 14px; border:2px solid var(--border); border-radius:10px; font-size:14px; font-family:'Nunito',sans-serif; outline:none; resize:vertical; min-height:88px; background:var(--bg); color:var(--text); }
+  .fta:focus { border-color:var(--blue); background:white; }
+  .fb { width:100%; background:linear-gradient(135deg,var(--blue),var(--dark)); color:white; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; margin-top:6px; transition:all .2s; }
+  .fb:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(23,86,200,.35); }
+  .ferr { background:#FEF2F2; border:1.5px solid #FCA5A5; border-radius:10px; padding:10px 14px; font-size:13px; color:#DC2626; margin-bottom:14px; font-weight:600; }
+  .fhint { font-size:11px; color:var(--muted); margin-top:3px; }
+  .demo-box { background:var(--bg); border-radius:10px; padding:10px 14px; text-align:center; margin-top:14px; font-size:12px; color:var(--muted); }
+  .demo-box strong { color:var(--blue); }
+  .frow { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .utog { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+  .tog { width:44px; height:24px; border-radius:12px; background:var(--border); position:relative; transition:background .25s; flex-shrink:0; }
+  .tog.on { background:var(--blue); }
+  .tog::after { content:''; position:absolute; width:18px; height:18px; background:white; border-radius:50%; top:3px; left:3px; transition:left .25s; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+  .tog.on::after { left:23px; }
+
+  /* PHOTOS */
+  .photo-section { margin-bottom:16px; }
+  .photo-grid { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .photo-slot { width:92px; height:92px; border-radius:12px; border:2px dashed var(--border); background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; font-size:11px; color:var(--muted); font-weight:600; gap:4px; }
+  .photo-slot:hover { border-color:var(--blue); background:#EBF2FF; }
+  .photo-slot img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; border-radius:10px; }
+  .photo-del { position:absolute; top:4px; right:4px; background:rgba(220,38,38,.85); color:white; border:none; border-radius:50%; width:22px; height:22px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; z-index:2; }
+  .photo-uploading { position:absolute; inset:0; background:rgba(23,86,200,.72); display:flex; align-items:center; justify-content:center; color:white; font-size:11px; font-weight:700; border-radius:10px; }
+  .photo-main-badge { position:absolute; bottom:4px; left:4px; background:var(--gold); color:var(--dark); font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px; font-family:'Montserrat',sans-serif; }
+  .photo-limit { font-size:11px; color:var(--muted); margin-top:6px; }
+
+  /* HERO */
+  .hero { background:linear-gradient(135deg,var(--dark) 0%,#0D3380 40%,var(--blue) 100%); padding:52px 24px 44px; text-align:center; position:relative; overflow:hidden; }
+  .hero-blur1 { position:absolute; width:380px; height:380px; background:radial-gradient(circle,rgba(56,207,255,.2) 0%,transparent 70%); top:-110px; right:-90px; pointer-events:none; }
+  .hero-blur2 { position:absolute; width:260px; height:260px; background:radial-gradient(circle,rgba(255,217,61,.15) 0%,transparent 70%); bottom:-90px; left:-70px; pointer-events:none; }
+  .hero-logo { margin-bottom:20px; display:flex; justify-content:center; }
+  .hero h1 { font-family:'Montserrat',sans-serif; font-size:clamp(22px,4vw,42px); font-weight:900; color:white; margin-bottom:10px; line-height:1.15; }
+  .hero h1 em { color:var(--gold); font-style:normal; }
+  .hero p { color:rgba(255,255,255,.72); font-size:15px; margin-bottom:28px; max-width:460px; margin-left:auto; margin-right:auto; }
+  .sbar { display:flex; max-width:540px; margin:0 auto 28px; background:white; border-radius:14px; overflow:hidden; box-shadow:0 12px 40px rgba(10,36,99,.25); }
+  .sbar input { flex:1; padding:15px 18px; border:none; outline:none; font-size:14px; font-family:'Nunito',sans-serif; color:var(--text); }
+  .sbar button { background:var(--gold); color:var(--dark); border:none; padding:13px 22px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; }
+  .sbar button:hover { background:#FFC800; }
+  .stats { display:flex; justify-content:center; gap:40px; flex-wrap:wrap; }
+  .stn { font-size:24px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
+  .stl { font-size:11px; color:rgba(255,255,255,.55); text-transform:uppercase; letter-spacing:1.5px; margin-top:2px; }
+
+  /* CONTENT */
+  .sec { max-width:1100px; margin:0 auto; padding:0 20px; }
+  .stitle { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:800; color:var(--dark); margin:30px 0 14px; }
+  .cats { display:flex; gap:8px; flex-wrap:wrap; }
+  .cbt { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:50px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
+  .cbt:hover { border-color:var(--blue); color:var(--blue); }
+  .cbt.on { border-color:var(--blue); background:var(--blue); color:white; box-shadow:0 4px 12px rgba(23,86,200,.25); }
+
+  /* GRID */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); gap:18px; margin:16px 0 44px; }
+  .card { background:white; border-radius:18px; overflow:hidden; border:2px solid var(--border); transition:all .25s; cursor:pointer; }
+  .card:hover { transform:translateY(-5px); box-shadow:0 16px 48px rgba(23,86,200,.14); border-color:var(--sky); }
+  .cimg { height:172px; position:relative; overflow:hidden; }
+  .cimg-real { width:100%; height:100%; object-fit:cover; display:block; }
+  .cimg-emoji { height:172px; background:linear-gradient(135deg,#EBF2FF,#D6E4FF); display:flex; align-items:center; justify-content:center; font-size:62px; position:relative; }
+  .photo-count { position:absolute; bottom:8px; right:8px; background:rgba(10,36,99,.75); color:white; font-size:10px; font-weight:700; padding:3px 8px; border-radius:10px; font-family:'Montserrat',sans-serif; }
+  .bcat { position:absolute; top:10px; left:10px; background:var(--dark); color:var(--sky); font-size:10px; font-weight:800; letter-spacing:1px; padding:4px 10px; border-radius:20px; text-transform:uppercase; font-family:'Montserrat',sans-serif; z-index:1; }
+  .burg { position:absolute; top:10px; right:10px; background:linear-gradient(135deg,#FF6B35,#FF3D00); color:white; font-size:10px; font-weight:800; padding:4px 10px; border-radius:20px; font-family:'Montserrat',sans-serif; animation:pulse 2s infinite; z-index:1; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,61,0,.4)} 50%{box-shadow:0 0 0 5px rgba(255,61,0,0)} }
+  .bmine { position:absolute; bottom:8px; left:8px; background:var(--gold); color:var(--dark); font-size:10px; font-weight:800; padding:3px 9px; border-radius:20px; font-family:'Montserrat',sans-serif; z-index:1; }
+  .cbody { padding:14px; }
+  .ctitle { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:800; color:var(--dark); margin-bottom:5px; line-height:1.3; }
+  .cprix { font-size:18px; font-weight:900; color:var(--blue); margin-bottom:5px; font-family:'Montserrat',sans-serif; }
+  .clieu { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .cdesc { font-size:12px; color:#4A5568; line-height:1.55; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:11px; }
+  .cfoot { display:flex; align-items:center; justify-content:space-between; border-top:2px solid var(--bg); padding-top:10px; }
+  .cvend { font-size:11px; color:var(--muted); }
+  .cvend strong { color:var(--dark); font-size:12px; display:block; font-weight:700; }
+  .wabtn { display:flex; align-items:center; gap:5px; background:#22C55E; color:white; border:none; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; text-decoration:none; transition:all .2s; }
+  .wabtn:hover { background:#16A34A; transform:scale(1.05); }
+
+  /* POST */
+  .pscreen { max-width:560px; margin:36px auto; padding:0 20px 56px; }
+  .pback { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:13px; font-weight:700; cursor:pointer; margin-bottom:20px; background:none; border:none; font-family:'Montserrat',sans-serif; }
+  .pback:hover { color:var(--blue); }
+  .pcard { background:white; border-radius:22px; padding:30px; border:2px solid var(--border); box-shadow:0 8px 32px rgba(23,86,200,.08); }
+  .ptitle { font-family:'Montserrat',sans-serif; font-size:22px; font-weight:900; color:var(--dark); margin-bottom:24px; }
+  .succ { background:#F0FDF4; border:2px solid #86EFAC; border-radius:12px; padding:13px 16px; color:#15803D; font-size:14px; font-weight:700; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+
+  /* MODAL */
+  .moverlay { position:fixed; inset:0; background:rgba(10,36,99,.78); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px); }
+  .modal { background:white; border-radius:24px; max-width:520px; width:100%; overflow:hidden; box-shadow:0 32px 80px rgba(10,36,99,.35); animation:fadeUp .3s ease; max-height:90vh; overflow-y:auto; }
+  .mimg-wrap { height:230px; position:relative; overflow:hidden; background:linear-gradient(135deg,#EBF2FF,#D6E4FF); }
+  .mimg-real { width:100%; height:100%; object-fit:cover; display:block; }
+  .mimg-emoji { height:230px; display:flex; align-items:center; justify-content:center; font-size:80px; }
+  .mimg-nav { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 10px; }
+  .mnav-btn { background:rgba(10,36,99,.5); color:white; border:none; border-radius:50%; width:34px; height:34px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .mnav-btn:hover { background:rgba(10,36,99,.8); }
+  .mimg-dots { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:5px; }
+  .mdot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.5); }
+  .mdot.on { background:white; }
+  .mbadges { position:absolute; top:10px; left:10px; display:flex; gap:6px; z-index:1; }
+  .mbody { padding:22px; }
+  .mtitle { font-family:'Montserrat',sans-serif; font-size:20px; font-weight:900; color:var(--dark); margin-bottom:5px; }
+  .mprix { font-size:24px; font-weight:900; color:var(--blue); margin-bottom:10px; font-family:'Montserrat',sans-serif; }
+  .mmeta { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .mmeta span { font-size:12px; color:var(--muted); background:var(--bg); border-radius:6px; padding:3px 8px; }
+  .mdesc { font-size:13px; color:#4A5568; line-height:1.7; margin-bottom:18px; }
+  .macts { display:flex; gap:10px; }
+  .mclose { flex:1; background:var(--bg); color:var(--dark); border:2px solid var(--border); border-radius:12px; padding:13px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; }
+  .mclose:hover { border-color:var(--blue); color:var(--blue); }
+  .mwa { flex:2; display:flex; align-items:center; justify-content:center; gap:8px; background:#22C55E; color:white; border:none; border-radius:12px; padding:13px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; text-decoration:none; }
+  .mwa:hover { background:#16A34A; }
+
+  /* PROFILE */
+  .profscreen { max-width:700px; margin:36px auto; padding:0 20px 56px; }
+  .profhead { background:linear-gradient(135deg,var(--dark),var(--blue)); border-radius:22px; padding:28px; margin-bottom:20px; display:flex; align-items:center; gap:20px; }
+  .avatar { width:64px; height:64px; border-radius:50%; background:var(--gold); display:flex; align-items:center; justify-content:center; font-size:28px; color:var(--dark); font-weight:900; font-family:'Montserrat',sans-serif; flex-shrink:0; }
+  .pinfo h2 { font-family:'Montserrat',sans-serif; font-size:20px; font-weight:900; color:white; }
+  .pinfo p { font-size:13px; color:rgba(255,255,255,.65); margin-top:4px; }
+  .pstats { display:flex; gap:24px; margin-top:10px; }
+  .psn { font-size:22px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
+  .psl { font-size:11px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:1px; }
+  .empty { text-align:center; padding:52px 20px; color:var(--muted); }
+  .eico { font-size:44px; margin-bottom:12px; }
+  .emsg { font-size:15px; font-weight:600; }
+  .footer { background:var(--dark); color:rgba(255,255,255,.4); text-align:center; padding:20px; font-size:12px; }
+  .footer strong { color:var(--gold); }
+`;
+
+function PhotoUploader({ photos, setPhotos }) {
+  const inputRef = useRef();
+  const [uploading, setUploading] = useState(false);
+  const handleFiles = async (e) => {
+    const toUpload = Array.from(e.target.files).slice(0, 3 - photos.length);
+    if (!toUpload.length) return;
+    setUploading(true);
+    try {
+      const urls = await Promise.all(toUpload.map(f => uploadToCloudinary(f)));
+      setPhotos(p => [...p, ...urls]);
+    } catch (err) { alert("Erreur upload : " + err.message); }
+    setUploading(false);
+    e.target.value = "";
+  };
+  return (
+    <div className="photo-section">
+      <label className="fl">Photos (3 max)</label>
+      <div className="photo-grid">
+        {photos.map((url, i) => (
+          <div key={i} className="photo-slot">
+            <img src={url} alt=""/>
+            {i === 0 && <span className="photo-main-badge">Principale</span>}
+            <button className="photo-del" onClick={() => setPhotos(p => p.filter((_,j) => j !== i))} type="button">×</button>
+          </div>
+        ))}
+        {photos.length < 3 && (
+          <div className="photo-slot" onClick={() => !uploading && inputRef.current.click()}>
+            {uploading ? <div className="photo-uploading">⏳…</div> : <>📷<span>Ajouter</span></>}
+          </div>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={handleFiles}/>
+      </div>
+      <div className="photo-limit">{photos.length}/3 — La 1ère photo sera la principale</div>
+    </div>
+  );
+}
+
+function CardImage({ annonce }) {
+  const photos = annonce.photos || [];
+  if (photos.length > 0) return (
+    <div className="cimg">
+      <img src={photos[0]} alt={annonce.titre} className="cimg-real"/>
+      <span className="bcat">{categories.find(c=>c.id===annonce.categorie)?.label}</span>
+      {annonce.urgent && <span className="burg">⚡ Urgent</span>}
+      {photos.length > 1 && <span className="photo-count">📷 {photos.length}</span>}
+    </div>
+  );
+  return (
+    <div className="cimg-emoji">
+      <span className="bcat">{categories.find(c=>c.id===annonce.categorie)?.label}</span>
+      {annonce.urgent && <span className="burg">⚡ Urgent</span>}
+      {annonce.emoji}
+    </div>
+  );
+}
+
+function ModalImage({ annonce }) {
+  const [idx, setIdx] = useState(0);
+  const photos = annonce.photos || [];
+  if (!photos.length) return <div className="mimg-emoji">{annonce.emoji}</div>;
+  return (
+    <div className="mimg-wrap">
+      <img src={photos[idx]} alt="" className="mimg-real"/>
+      <div className="mbadges">
+        <span className="bcat">{categories.find(c=>c.id===annonce.categorie)?.label}</span>
+        {annonce.urgent && <span className="burg">⚡ Urgent</span>}
+      </div>
+      {photos.length > 1 && <>
+        <div className="mimg-nav">
+          <button className="mnav-btn" onClick={e=>{e.stopPropagation();setIdx(i=>(i-1+photos.length)%photos.length)}}>‹</button>
+          <button className="mnav-btn" onClick={e=>{e.stopPropagation();setIdx(i=>(i+1)%photos.length)}}>›</button>
+        </div>
+        <div className="mimg-dots">{photos.map((_,i)=><div key={i} className={`mdot${i===idx?" on":""}`}/>)}</div>
+      </>}
+    </div>
+  );
+}
+
+export default function YoMan() {
+  const [users,setUsers]         = useState(INIT_USERS);
+  const [annonces,setAnnonces]   = useState(INIT_ANNONCES);
+  const [user,setUser]           = useState(null);
+  const [authTab,setAuthTab]     = useState("login");
+  const [page,setPage]           = useState("home");
+  const [catActive,setCat]       = useState("tous");
+  const [searchInput,setSI]      = useState("");
+  const [search,setSearch]       = useState("");
+  const [selected,setSelected]   = useState(null);
+  const [authErr,setAuthErr]     = useState("");
+  const [postOk,setPostOk]       = useState(false);
+  const [nextId,setNextId]       = useState(100);
+  const [lTel,setLTel]=useState(""); const [lPwd,setLPwd]=useState("");
+  const [rNom,setRNom]=useState(""); const [rTel,setRTel]=useState("");
+  const [rWa,setRWa]=useState("");   const [rPwd,setRPwd]=useState("");
+  const [pTitre,setPTitre]=useState(""); const [pCat,setPCat]=useState("immobilier");
+  const [pPrix,setPPrix]=useState("");   const [pVille,setPVille]=useState("Ouagadougou");
+  const [pQ,setPQ]=useState("");         const [pDesc,setPDesc]=useState("");
+  const [pUrg,setPUrg]=useState(false);  const [pPhotos,setPPhotos]=useState([]);
+
+  const login = () => {
+    setAuthErr("");
+    const u = users.find(u=>u.tel===lTel&&u.password===lPwd);
+    if (!u){setAuthErr("Numéro ou mot de passe incorrect.");return;}
+    setUser(u);
+  };
+  const register = () => {
+    setAuthErr("");
+    if(!rNom||!rTel||!rPwd){setAuthErr("Veuillez remplir tous les champs obligatoires.");return;}
+    if(users.find(u=>u.tel===rTel)){setAuthErr("Ce numéro est déjà enregistré.");return;}
+    const nu={id:Date.now(),nom:rNom,tel:rTel,whatsapp:rWa||rTel,password:rPwd};
+    setUsers(p=>[...p,nu]); setUser(nu);
+  };
+  const postAd = () => {
+    if(!pTitre||!pPrix||!pQ||!pDesc) return;
+    const na={id:nextId,categorie:pCat,titre:pTitre,prix:pPrix+" FCFA",ville:pVille,quartier:pQ,description:pDesc,whatsapp:user.whatsapp,date:"À l'instant",vendeur:user.nom,urgent:pUrg,emoji:catEmojis[pCat],userId:user.id,photos:pPhotos};
+    setAnnonces(p=>[na,...p]); setNextId(n=>n+1);
+    setPTitre(""); setPPrix(""); setPQ(""); setPDesc(""); setPUrg(false); setPPhotos([]);
+    setPostOk(true);
+    setTimeout(()=>{setPostOk(false);setPage("home");},2000);
+  };
+
+  const myAds    = annonces.filter(a=>a.userId===user?.id);
+  const filtered = annonces.filter(a=>{
+    const mc=catActive==="tous"||a.categorie===catActive;
+    const ms=search===""||[a.titre,a.description,a.ville].some(s=>s.toLowerCase().includes(search.toLowerCase()));
+    return mc&&ms;
+  });
+
+  const Header = ({showPost=true}) => (
+    <header className="hdr"><div className="hdr-in">
+      <div style={{cursor:"pointer"}} onClick={()=>setPage("home")}><YoManLogo variant="white" height={40}/></div>
+      <div className="hdr-r">
+        {user&&<span className="huser">Salut, <strong>{user.nom.split(" ")[0]}</strong> 👋</span>}
+        <button className="btn-o" onClick={()=>setPage("profile")}>Mon profil</button>
+        {showPost&&<button className="btn-p" onClick={()=>setPage("post")}>+ Annonce</button>}
+        <button className="btn-o" onClick={()=>setUser(null)} title="Déconnexion">⏻</button>
+      </div>
+    </div></header>
+  );
+  const Footer = () => (
+    <footer className="footer"><strong>YoMan!</strong> &nbsp;·&nbsp; Vente entre particuliers · Burkina Faso · 2026</footer>
+  );
+
+  // AUTH
+  if (!user) return (<><style>{styles}</style>
+    <div className="auth-wrap"><div className="auth-box">
+      <div className="auth-logo-wrap"><YoManLogo variant="color" height={56}/></div>
+      <div className="tabs">
+        <button className={`tab${authTab==="login"?" on":""}`} onClick={()=>{setAuthTab("login");setAuthErr("");}}>Se connecter</button>
+        <button className={`tab${authTab==="register"?" on":""}`} onClick={()=>{setAuthTab("register");setAuthErr("");}}>S'inscrire</button>
+      </div>
+      {authErr&&<div className="ferr">⚠️ {authErr}</div>}
+      {authTab==="login"?<>
+        <div className="fg"><label className="fl">Numéro de téléphone</label><input className="fi" placeholder="Ex : 70123456" value={lTel} onChange={e=>setLTel(e.target.value)}/></div>
+        <div className="fg"><label className="fl">Mot de passe</label><input className="fi" type="password" placeholder="••••••••" value={lPwd} onChange={e=>setLPwd(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}/></div>
+        <button className="fb" onClick={login}>Se connecter →</button>
+        <div className="demo-box">Compte démo : <strong>70000001</strong> / <strong>1234</strong></div>
+      </>:<>
+        <div className="fg"><label className="fl">Nom complet *</label><input className="fi" placeholder="Ex : Moussa Kaboré" value={rNom} onChange={e=>setRNom(e.target.value)}/></div>
+        <div className="fg"><label className="fl">Numéro de téléphone *</label><input className="fi" placeholder="Ex : 70123456" value={rTel} onChange={e=>setRTel(e.target.value)}/></div>
+        <div className="fg"><label className="fl">Numéro WhatsApp (avec indicatif)</label><input className="fi" placeholder="Ex : 22670123456" value={rWa} onChange={e=>setRWa(e.target.value)}/><div className="fhint">Laisser vide = même que téléphone</div></div>
+        <div className="fg"><label className="fl">Mot de passe *</label><input className="fi" type="password" placeholder="Choisissez un mot de passe" value={rPwd} onChange={e=>setRPwd(e.target.value)}/></div>
+        <button className="fb" onClick={register}>Créer mon compte →</button>
+      </>}
+    </div></div>
+  </>);
+
+  // POST
+  if (page==="post") return (<><style>{styles}</style>
+    <div className="app"><Header showPost={false}/>
+      <div className="pscreen">
+        <button className="pback" onClick={()=>setPage("home")}>← Retour</button>
+        {postOk&&<div className="succ">✅ Annonce publiée !</div>}
+        <div className="pcard">
+          <div className="ptitle">📝 Déposer une annonce</div>
+          <div className="fg"><label className="fl">Catégorie *</label><select className="fs" value={pCat} onChange={e=>setPCat(e.target.value)}>{categories.map(c=><option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}</select></div>
+          <div className="fg"><label className="fl">Titre *</label><input className="fi" placeholder="Ex : Toyota Corolla 2020" value={pTitre} onChange={e=>setPTitre(e.target.value)}/></div>
+          <div className="fg"><label className="fl">Prix (FCFA) *</label><input className="fi" placeholder="Ex : 2 500 000" value={pPrix} onChange={e=>setPPrix(e.target.value)}/></div>
+          <div className="frow">
+            <div className="fg"><label className="fl">Ville *</label><select className="fs" value={pVille} onChange={e=>setPVille(e.target.value)}>{villes.map(v=><option key={v}>{v}</option>)}</select></div>
+            <div className="fg"><label className="fl">Quartier *</label><input className="fi" placeholder="Ex : Ouaga 2000" value={pQ} onChange={e=>setPQ(e.target.value)}/></div>
+          </div>
+          <div className="fg"><label className="fl">Description *</label><textarea className="fta" placeholder="Décrivez votre article…" value={pDesc} onChange={e=>setPDesc(e.target.value)}/></div>
+          <PhotoUploader photos={pPhotos} setPhotos={setPPhotos}/>
+          <div className="fg"><label className="utog"><div className={`tog${pUrg?" on":""}`} onClick={()=>setPUrg(p=>!p)}/><span style={{fontSize:13,color:"var(--dark)",fontWeight:700}}>⚡ Marquer comme urgent</span></label></div>
+          <button className="fb" onClick={postAd}>Publier l'annonce →</button>
+        </div>
+      </div><Footer/>
+    </div>
+  </>);
+
+  // PROFILE
+  if (page==="profile") return (<><style>{styles}</style>
+    <div className="app"><Header/>
+      <div className="profscreen">
+        <button className="pback" onClick={()=>setPage("home")}>← Retour</button>
+        <div className="profhead">
+          <div className="avatar">{user.nom[0]}</div>
+          <div className="pinfo">
+            <h2>{user.nom}</h2>
+            <p>📞 {user.tel} · 💬 {user.whatsapp}</p>
+            <div className="pstats"><div><div className="psn">{myAds.length}</div><div className="psl">Annonces</div></div></div>
+          </div>
+        </div>
+        <div className="stitle">Mes annonces</div>
+        {myAds.length===0
+          ?<div className="empty"><div className="eico">📭</div><div className="emsg">Aucune annonce publiée</div></div>
+          :<div className="grid">{myAds.map(a=>(
+            <div key={a.id} className="card" onClick={()=>setSelected(a)}>
+              <CardImage annonce={a}/>
+              <div className="cbody"><div className="ctitle">{a.titre}</div><div className="cprix">{a.prix}</div><div className="clieu">📍 {a.quartier}, {a.ville}</div></div>
+            </div>
+          ))}</div>}
+      </div><Footer/>
+    </div>
+  </>);
+
+  // HOME
+  return (<><style>{styles}</style>
+    <div className="app"><Header/>
+      <section className="hero">
+        <div className="hero-blur1"/><div className="hero-blur2"/>
+        <div className="hero-logo"><YoManLogo variant="white" height={64}/></div>
+        <h1>Vente entre particuliers<br/><em>partout au Burkina !</em></h1>
+        <p>Achète, vends, échange — gratuit, simple et entre particuliers 🇧🇫</p>
+        <div className="sbar">
+          <input placeholder="Que cherchez-vous ?" value={searchInput} onChange={e=>setSI(e.target.value)} onKeyDown={e=>e.key==="Enter"&&setSearch(searchInput)}/>
+          <button onClick={()=>setSearch(searchInput)}>Rechercher</button>
+        </div>
+        <div className="stats">
+          <div className="stat"><div className="stn">{annonces.length}</div><div className="stl">Annonces</div></div>
+          <div className="stat"><div className="stn">{users.length}</div><div className="stl">Membres</div></div>
+          <div className="stat"><div className="stn">14</div><div className="stl">Villes</div></div>
+        </div>
+      </section>
+
+      <div className="sec">
+        <div className="stitle">Catégories</div>
+        <div className="cats">
+          <button className={`cbt${catActive==="tous"?" on":""}`} onClick={()=>setCat("tous")}>🗂️ Toutes</button>
+          {categories.map(c=><button key={c.id} className={`cbt${catActive===c.id?" on":""}`} onClick={()=>setCat(c.id)}>{c.icon} {c.label}</button>)}
+        </div>
+        <div className="stitle">{filtered.length} annonce{filtered.length!==1?"s":""}{search?` pour « ${search} »`:""}</div>
+        {filtered.length===0
+          ?<div className="empty"><div className="eico">🔍</div><div className="emsg">Aucune annonce trouvée</div></div>
+          :<div className="grid">{filtered.map(a=>(
+            <div key={a.id} className="card" onClick={()=>setSelected(a)}>
+              <div style={{position:"relative"}}>
+                <CardImage annonce={a}/>
+                {a.userId===user.id&&<span className="bmine">Ma annonce</span>}
+              </div>
+              <div className="cbody">
+                <div className="ctitle">{a.titre}</div>
+                <div className="cprix">{a.prix}</div>
+                <div className="clieu">📍 {a.quartier}, {a.ville}</div>
+                <div className="cdesc">{a.description}</div>
+                <div className="cfoot">
+                  <div className="cvend"><strong>{a.vendeur}</strong>{a.date}</div>
+                  <a className="wabtn" href={waLink(a.whatsapp,a.titre)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>💬 WhatsApp</a>
+                </div>
+              </div>
+            </div>
+          ))}</div>}
+      </div>
+
+      {selected&&(
+        <div className="moverlay" onClick={()=>setSelected(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <ModalImage annonce={selected}/>
+            <div className="mbody">
+              <div className="mtitle">{selected.titre}</div>
+              <div className="mprix">{selected.prix}</div>
+              <div className="mmeta">
+                <span>📍 {selected.quartier}, {selected.ville}</span>
+                <span>👤 {selected.vendeur}</span>
+                <span>🕐 {selected.date}</span>
+              </div>
+              <div className="mdesc">{selected.description}</div>
+              <div className="macts">
+                <button className="mclose" onClick={()=>setSelected(null)}>Fermer</button>
+                <a className="mwa" href={waLink(selected.whatsapp,selected.titre)} target="_blank" rel="noopener noreferrer">💬 Contacter sur WhatsApp</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <Footer/>
+    </div>
+  </>);
+}
