@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db, auth } from "./firebase";
 import {
-  collection, addDoc, getDocs, query, orderBy, serverTimestamp
+  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
@@ -209,6 +209,8 @@ const styles = `
   .psn { font-size:22px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
   .psl { font-size:11px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:1px; }
   .loading { display:flex; align-items:center; justify-content:center; min-height:100vh; font-size:24px; }
+  .del-btn { background:#FEF2F2; color:#DC2626; border:2px solid #FCA5A5; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; margin-top:8px; width:100%; }
+  .del-btn:hover { background:#DC2626; color:white; }
   .empty { text-align:center; padding:52px 20px; color:var(--muted); }
   .eico { font-size:44px; margin-bottom:12px; }
   .emsg { font-size:15px; font-weight:600; }
@@ -392,6 +394,14 @@ export default function YoMan() {
 
   const logout = () => { signOut(auth); setPage("home"); };
 
+  const deleteAd = async (id) => {
+    if (!window.confirm("Supprimer cette annonce ?")) return;
+    try {
+      await deleteDoc(doc(db, "annonces", id));
+      setAnnonces(p => p.filter(a => a.id !== id));
+    } catch(e) { alert("Erreur : " + e.message); }
+  };
+
   const myAds = annonces.filter(a => a.userId === user?.uid);
   const filtered = annonces.filter(a => {
     const mc = catActive === "tous" || a.categorie === catActive;
@@ -493,7 +503,12 @@ export default function YoMan() {
           : <div className="grid">{myAds.map(a => (
               <div key={a.id} className="card" onClick={() => setSelected(a)}>
                 <CardImage annonce={a}/>
-                <div className="cbody"><div className="ctitle">{a.titre}</div><div className="cprix">{a.prix}</div><div className="clieu">📍 {a.quartier}, {a.ville}</div></div>
+                <div className="cbody">
+                  <div className="ctitle">{a.titre}</div>
+                  <div className="cprix">{a.prix}</div>
+                  <div className="clieu">📍 {a.quartier}, {a.ville}</div>
+                  <button className="del-btn" onClick={e => { e.stopPropagation(); deleteAd(a.id); }}>🗑️ Supprimer l'annonce</button>
+                </div>
               </div>
             ))}</div>
         }
