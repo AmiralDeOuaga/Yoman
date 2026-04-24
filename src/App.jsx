@@ -210,8 +210,17 @@ const styles = `
   .psn { font-size:22px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
   .psl { font-size:11px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:1px; }
   .loading { display:flex; align-items:center; justify-content:center; min-height:100vh; font-size:24px; }
-  .del-btn { background:#FEF2F2; color:#DC2626; border:2px solid #FCA5A5; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; margin-top:8px; width:100%; }
+  .del-btn { background:#FEF2F2; color:#DC2626; border:2px solid #FCA5A5; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; flex:1; }
   .del-btn:hover { background:#DC2626; color:white; }
+
+  /* FILTRES */
+  .filter-bar { display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
+  .filter-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:50px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
+  .filter-btn.on { border-color:var(--blue); background:var(--blue); color:white; }
+  .filter-panel { background:white; border-radius:16px; border:2px solid var(--border); padding:18px; margin-bottom:16px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  @media(max-width:600px) { .filter-panel { grid-template-columns:1fr 1fr; } }
+  .filter-label { font-size:11px; font-weight:700; color:var(--dark); margin-bottom:5px; display:block; }
+  .filter-reset { background:var(--bg); color:var(--muted); border:2px solid var(--border); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; grid-column:1/-1; }
   .empty { text-align:center; padding:52px 20px; color:var(--muted); }
   .eico { font-size:44px; margin-bottom:12px; }
   .emsg { font-size:15px; font-weight:600; }
@@ -324,6 +333,12 @@ export default function YoMan() {
   const [pUrg,setPUrg]=useState(false);  const [pPhotos,setPPhotos]=useState([]);
   const [editAd, setEditAd] = useState(null); // annonce en cours d'édition
 
+  // Filtres
+  const [filtreVille, setFiltreVille] = useState("toutes");
+  const [filtrePrixMin, setFiltrePrixMin] = useState("");
+  const [filtrePrixMax, setFiltrePrixMax] = useState("");
+  const [showFiltres, setShowFiltres] = useState(false);
+
   // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
@@ -432,7 +447,11 @@ export default function YoMan() {
   const filtered = annonces.filter(a => {
     const mc = catActive === "tous" || a.categorie === catActive;
     const ms = search === "" || [a.titre, a.description, a.ville].some(s => s?.toLowerCase().includes(search.toLowerCase()));
-    return mc && ms;
+    const mv = filtreVille === "toutes" || a.ville === filtreVille;
+    const prix = parseInt(a.prix?.replace(/\D/g,"")) || 0;
+    const mp = (!filtrePrixMin || prix >= parseInt(filtrePrixMin.replace(/\D/g,"")||0)) &&
+               (!filtrePrixMax || prix <= parseInt(filtrePrixMax.replace(/\D/g,"")||99999999999));
+    return mc && ms && mv && mp;
   });
 
   const formatDate = (ts) => {
@@ -569,6 +588,36 @@ export default function YoMan() {
           <button className={`cbt${catActive==="tous"?" on":""}`} onClick={()=>setCat("tous")}>🗂️ Toutes</button>
           {categories.map(c=><button key={c.id} className={`cbt${catActive===c.id?" on":""}`} onClick={()=>setCat(c.id)}>{c.icon} {c.label}</button>)}
         </div>
+
+        {/* FILTRES */}
+        <div className="filter-bar" style={{marginTop:16}}>
+          <button className={`filter-btn${showFiltres?" on":""}`} onClick={()=>setShowFiltres(f=>!f)}>
+            🔽 Filtres {(filtreVille!=="toutes"||filtrePrixMin||filtrePrixMax) ? "●" : ""}
+          </button>
+          {(filtreVille!=="toutes"||filtrePrixMin||filtrePrixMax) && (
+            <button className="filter-btn" onClick={()=>{setFiltreVille("toutes");setFiltrePrixMin("");setFiltrePrixMax("");}}>✕ Effacer</button>
+          )}
+        </div>
+        {showFiltres && (
+          <div className="filter-panel">
+            <div>
+              <label className="filter-label">Ville</label>
+              <select className="fs" value={filtreVille} onChange={e=>setFiltreVille(e.target.value)}>
+                <option value="toutes">Toutes les villes</option>
+                {villes.map(v=><option key={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="filter-label">Prix min (FCFA)</label>
+              <input className="fi" placeholder="Ex: 100 000" value={filtrePrixMin} onChange={e=>setFiltrePrixMin(e.target.value)}/>
+            </div>
+            <div>
+              <label className="filter-label">Prix max (FCFA)</label>
+              <input className="fi" placeholder="Ex: 5 000 000" value={filtrePrixMax} onChange={e=>setFiltrePrixMax(e.target.value)}/>
+            </div>
+            <button className="filter-reset" onClick={()=>{setFiltreVille("toutes");setFiltrePrixMin("");setFiltrePrixMax("");}}>🔄 Réinitialiser les filtres</button>
+          </div>
+        )}
         <div className="stitle">{filtered.length} annonce{filtered.length!==1?"s":""}{search?` pour « ${search} »`:""}</div>
         {filtered.length === 0
           ? <div className="empty"><div className="eico">🔍</div><div className="emsg">Aucune annonce trouvée</div></div>
