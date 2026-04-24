@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db, auth } from "./firebase";
 import {
-  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc
+  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
@@ -228,6 +228,12 @@ const styles = `
   .page-btn:hover { border-color:var(--blue); color:var(--blue); }
   .page-btn.on { background:var(--blue); color:white; border-color:var(--blue); }
   .page-btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* FAVORIS */
+  .fav-btn { position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%; background:white; border:none; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.15); transition:all .2s; z-index:2; }
+  .fav-btn:hover { transform:scale(1.2); }
+  .fav-tab { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:50px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
+  .fav-tab.on { border-color:#FF6B6B; background:#FF6B6B; color:white; }
   .empty { text-align:center; padding:52px 20px; color:var(--muted); }
   .eico { font-size:44px; margin-bottom:12px; }
   .emsg { font-size:15px; font-weight:600; }
@@ -350,6 +356,9 @@ export default function YoMan() {
   const [currentPage, setCurrentPage] = useState(1);
   const ADS_PER_PAGE = 9;
 
+  // Favoris
+  const [favoris, setFavoris] = useState([]);
+
   // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
@@ -370,6 +379,19 @@ export default function YoMan() {
     };
     load();
   }, []);
+
+  // Load favoris
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      try {
+        const ref = doc(db, "favoris", user.uid);
+        const snap = await getDoc(ref);
+        if (snap.exists()) setFavoris(snap.data().ids || []);
+      } catch(e) { console.error(e); }
+    };
+    load();
+  }, [user]);
 
   const login = async () => {
     setAuthErr(""); setSubmitting(true);
@@ -444,7 +466,16 @@ export default function YoMan() {
     setSubmitting(false);
   };
 
-  const logout = () => { signOut(auth); setPage("home"); };
+  const logout = () => { signOut(auth); setPage("home"); setFavoris([]); };
+
+  const toggleFavori = async (id) => {
+    const ref = doc(db, "favoris", user.uid);
+    const isFav = favoris.includes(id);
+    try {
+      await setDoc(ref, { ids: isFav ? favoris.filter(f=>f!==id) : [...favoris, id] }, { merge: true });
+      setFavoris(p => isFav ? p.filter(f=>f!==id) : [...p, id]);
+    } catch(e) { console.error(e); }
+  };
 
   const deleteAd = async (id) => {
     if (!window.confirm("Supprimer cette annonce ?")) return;
@@ -456,7 +487,7 @@ export default function YoMan() {
 
   const myAds = annonces.filter(a => a.userId === user?.uid);
   const filtered = annonces.filter(a => {
-    const mc = catActive === "tous" || a.categorie === catActive;
+    const mc = catActive === "tous" || (catActive === "favoris" ? favoris.includes(a.id) : a.categorie === catActive);
     const ms = search === "" || [a.titre, a.description, a.ville].some(s => s?.toLowerCase().includes(search.toLowerCase()));
     const mv = filtreVille === "toutes" || a.ville === filtreVille;
     const prix = parseInt(a.prix?.replace(/\D/g,"")) || 0;
@@ -599,8 +630,9 @@ export default function YoMan() {
       <div className="sec">
         <div className="stitle">Catégories</div>
         <div className="cats">
-          <button className={`cbt${catActive==="tous"?" on":""}`} onClick={()=>setCat("tous")}>🗂️ Toutes</button>
-          {categories.map(c=><button key={c.id} className={`cbt${catActive===c.id?" on":""}`} onClick={()=>setCat(c.id)}>{c.icon} {c.label}</button>)}
+          <button className={`cbt${catActive==="tous"?" on":""}`} onClick={()=>{setCat("tous");setCurrentPage(1);}}>🗂️ Toutes</button>
+          {categories.map(c=><button key={c.id} className={`cbt${catActive===c.id?" on":""}`} onClick={()=>{setCat(c.id);setCurrentPage(1);}}>{c.icon} {c.label}</button>)}
+          <button className={`fav-tab${catActive==="favoris"?" on":""}`} onClick={()=>{setCat("favoris");setCurrentPage(1);}}>❤️ Favoris {favoris.length>0&&<span>({favoris.length})</span>}</button>
         </div>
 
         {/* FILTRES */}
@@ -641,6 +673,9 @@ export default function YoMan() {
                 <div style={{position:"relative"}}>
                   <CardImage annonce={a}/>
                   {a.userId === user.uid && <span className="bmine">Ma annonce</span>}
+                  <button className="fav-btn" onClick={e=>{e.stopPropagation();toggleFavori(a.id);}}>
+                    {favoris.includes(a.id) ? "❤️" : "🤍"}
+                  </button>
                 </div>
                 <div className="cbody">
                   <div className="ctitle">{a.titre}</div>
