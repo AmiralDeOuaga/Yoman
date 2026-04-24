@@ -221,6 +221,13 @@ const styles = `
   @media(max-width:600px) { .filter-panel { grid-template-columns:1fr 1fr; } }
   .filter-label { font-size:11px; font-weight:700; color:var(--dark); margin-bottom:5px; display:block; }
   .filter-reset { background:var(--bg); color:var(--muted); border:2px solid var(--border); border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; grid-column:1/-1; }
+
+  /* PAGINATION */
+  .pagination { display:flex; align-items:center; justify-content:center; gap:8px; margin:24px 0 44px; flex-wrap:wrap; }
+  .page-btn { width:38px; height:38px; border-radius:10px; border:2px solid var(--border); background:white; font-size:14px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; display:flex; align-items:center; justify-content:center; }
+  .page-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .page-btn.on { background:var(--blue); color:white; border-color:var(--blue); }
+  .page-btn:disabled { opacity:0.4; cursor:not-allowed; }
   .empty { text-align:center; padding:52px 20px; color:var(--muted); }
   .eico { font-size:44px; margin-bottom:12px; }
   .emsg { font-size:15px; font-weight:600; }
@@ -339,6 +346,10 @@ export default function YoMan() {
   const [filtrePrixMax, setFiltrePrixMax] = useState("");
   const [showFiltres, setShowFiltres] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ADS_PER_PAGE = 9;
+
   // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => {
@@ -453,6 +464,9 @@ export default function YoMan() {
                (!filtrePrixMax || prix <= parseInt(filtrePrixMax.replace(/\D/g,"")||99999999999));
     return mc && ms && mv && mp;
   });
+
+  const totalPages = Math.ceil(filtered.length / ADS_PER_PAGE);
+  const paginatedAds = filtered.slice((currentPage-1)*ADS_PER_PAGE, currentPage*ADS_PER_PAGE);
 
   const formatDate = (ts) => {
     if (!ts) return "À l'instant";
@@ -621,7 +635,8 @@ export default function YoMan() {
         <div className="stitle">{filtered.length} annonce{filtered.length!==1?"s":""}{search?` pour « ${search} »`:""}</div>
         {filtered.length === 0
           ? <div className="empty"><div className="eico">🔍</div><div className="emsg">Aucune annonce trouvée</div></div>
-          : <div className="grid">{filtered.map(a => (
+          : <>
+            <div className="grid">{paginatedAds.map(a => (
               <div key={a.id} className="card" onClick={() => setSelected(a)}>
                 <div style={{position:"relative"}}>
                   <CardImage annonce={a}/>
@@ -639,6 +654,16 @@ export default function YoMan() {
                 </div>
               </div>
             ))}</div>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button className="page-btn" onClick={()=>setCurrentPage(p=>Math.max(1,p-1))} disabled={currentPage===1}>‹</button>
+                {Array.from({length:totalPages},(_,i)=>i+1).map(n=>(
+                  <button key={n} className={`page-btn${n===currentPage?" on":""}`} onClick={()=>{ setCurrentPage(n); window.scrollTo(0,0); }}>{n}</button>
+                ))}
+                <button className="page-btn" onClick={()=>setCurrentPage(p=>Math.min(totalPages,p+1))} disabled={currentPage===totalPages}>›</button>
+              </div>
+            )}
+          </>
         }
       </div>
 
