@@ -73,14 +73,15 @@ const styles = `
   body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); }
   .app { min-height:100vh; }
 
-  .hdr { background:linear-gradient(135deg,var(--dark),var(--blue)); padding:0 20px; position:sticky; top:0; z-index:100; box-shadow:0 4px 24px rgba(10,36,99,.28); }
-  .hdr-in { max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:66px; }
-  .hdr-r { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .huser { font-size:13px; color:rgba(255,255,255,.75); }
+  .hdr { background:linear-gradient(135deg,var(--dark),var(--blue)); padding:0 16px; position:sticky; top:0; z-index:100; box-shadow:0 4px 24px rgba(10,36,99,.28); }
+  .hdr-in { max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; min-height:62px; padding:8px 0; flex-wrap:wrap; gap:6px; }
+  .hdr-r { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
+  .huser { font-size:12px; color:rgba(255,255,255,.75); white-space:nowrap; display:none; }
+  @media(min-width:480px) { .huser { display:block; } }
   .huser strong { color:var(--gold); }
-  .btn-p { background:var(--gold); color:var(--dark); border:none; border-radius:10px; padding:9px 18px; font-size:13px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; }
+  .btn-p { background:var(--gold); color:var(--dark); border:none; border-radius:10px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; white-space:nowrap; }
   .btn-p:hover { background:#FFC800; transform:translateY(-1px); }
-  .btn-o { background:rgba(255,255,255,.12); color:white; border:1.5px solid rgba(255,255,255,.25); border-radius:10px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Nunito',sans-serif; transition:all .2s; }
+  .btn-o { background:rgba(255,255,255,.12); color:white; border:1.5px solid rgba(255,255,255,.25); border-radius:10px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Nunito',sans-serif; transition:all .2s; white-space:nowrap; }
   .btn-o:hover { background:rgba(255,255,255,.22); }
 
   /* AUTH */
@@ -423,7 +424,7 @@ export default function YoMan() {
       <div style={{cursor:"pointer"}} onClick={() => setPage("home")}><YoManLogo variant="white" height={40}/></div>
       <div className="hdr-r">
         {user && <span className="huser">Salut, <strong>{user.displayName?.split(" ")[0]}</strong> 👋</span>}
-        <button className="btn-o" onClick={() => setPage("profile")}>Mon profil</button>
+        <button className="btn-o" onClick={() => setPage("profile")}>👤</button>
         {showPost && <button className="btn-p" onClick={() => setPage("post")}>+ Annonce</button>}
         <button className="btn-o" onClick={logout} title="Déconnexion">⏻</button>
       </div>
