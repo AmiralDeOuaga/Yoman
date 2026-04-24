@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db, auth } from "./firebase";
 import {
-  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc
+  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
@@ -322,6 +322,7 @@ export default function YoMan() {
   const [pPrix,setPPrix]=useState("");   const [pVille,setPVille]=useState("Ouagadougou");
   const [pQ,setPQ]=useState("");         const [pDesc,setPDesc]=useState("");
   const [pUrg,setPUrg]=useState(false);  const [pPhotos,setPPhotos]=useState([]);
+  const [editAd, setEditAd] = useState(null); // annonce en cours d'édition
 
   // Auth listener
   useEffect(() => {
@@ -371,24 +372,48 @@ export default function YoMan() {
     setSubmitting(false);
   };
 
+  const startEdit = (a) => {
+    setEditAd(a);
+    setPTitre(a.titre); setPCat(a.categorie); setPPrix(a.prix.replace(" FCFA",""));
+    setPVille(a.ville); setPQ(a.quartier); setPDesc(a.description);
+    setPUrg(a.urgent); setPPhotos(a.photos||[]);
+    setPage("post");
+  };
+
   const postAd = async () => {
     if (!pTitre||!pPrix||!pQ||!pDesc) return;
     setSubmitting(true);
     try {
-      const na = {
-        categorie: pCat, titre: pTitre, prix: pPrix + " FCFA",
-        ville: pVille, quartier: pQ, description: pDesc,
-        whatsapp: rWa || rTel || user.email,
-        vendeur: user.displayName || user.email,
-        urgent: pUrg, emoji: catEmojis[pCat],
-        userId: user.uid, photos: pPhotos,
-        createdAt: serverTimestamp()
-      };
-      const doc = await addDoc(collection(db, "annonces"), na);
-      setAnnonces(p => [{ id: doc.id, ...na, date: "À l'instant" }, ...p]);
-      setPTitre(""); setPPrix(""); setPQ(""); setPDesc(""); setPUrg(false); setPPhotos([]);
-      setPostOk(true);
-      setTimeout(() => { setPostOk(false); setPage("home"); }, 2000);
+      if (editAd) {
+        // MODE ÉDITION
+        const updates = {
+          categorie:pCat, titre:pTitre, prix:pPrix+" FCFA",
+          ville:pVille, quartier:pQ, description:pDesc,
+          urgent:pUrg, emoji:catEmojis[pCat], photos:pPhotos,
+        };
+        await updateDoc(doc(db,"annonces",editAd.id), updates);
+        setAnnonces(p => p.map(a => a.id===editAd.id ? {...a,...updates} : a));
+        setEditAd(null);
+        setPTitre(""); setPPrix(""); setPQ(""); setPDesc(""); setPUrg(false); setPPhotos([]);
+        setPostOk(true);
+        setTimeout(() => { setPostOk(false); setPage("profile"); }, 2000);
+      } else {
+        // MODE CRÉATION
+        const na = {
+          categorie: pCat, titre: pTitre, prix: pPrix + " FCFA",
+          ville: pVille, quartier: pQ, description: pDesc,
+          whatsapp: rWa || rTel || user.email,
+          vendeur: user.displayName || user.email,
+          urgent: pUrg, emoji: catEmojis[pCat],
+          userId: user.uid, photos: pPhotos,
+          createdAt: serverTimestamp()
+        };
+        const docRef = await addDoc(collection(db, "annonces"), na);
+        setAnnonces(p => [{ id: docRef.id, ...na, date: "À l'instant" }, ...p]);
+        setPTitre(""); setPPrix(""); setPQ(""); setPDesc(""); setPUrg(false); setPPhotos([]);
+        setPostOk(true);
+        setTimeout(() => { setPostOk(false); setPage("home"); }, 2000);
+      }
     } catch(e) { alert("Erreur : " + e.message); }
     setSubmitting(false);
   };
@@ -468,7 +493,7 @@ export default function YoMan() {
         <button className="pback" onClick={() => setPage("home")}>← Retour</button>
         {postOk && <div className="succ">✅ Annonce publiée !</div>}
         <div className="pcard">
-          <div className="ptitle">📝 Déposer une annonce</div>
+          <div className="ptitle">{editAd ? "✏️ Modifier l'annonce" : "📝 Déposer une annonce"}</div>
           <div className="fg"><label className="fl">Catégorie *</label><select className="fs" value={pCat} onChange={e=>setPCat(e.target.value)}>{categories.map(c=><option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}</select></div>
           <div className="fg"><label className="fl">Titre *</label><input className="fi" placeholder="Ex : Toyota Corolla 2020" value={pTitre} onChange={e=>setPTitre(e.target.value)}/></div>
           <div className="fg"><label className="fl">Prix (FCFA) *</label><input className="fi" placeholder="Ex : 2 500 000" value={pPrix} onChange={e=>setPPrix(e.target.value)}/></div>
@@ -479,7 +504,7 @@ export default function YoMan() {
           <div className="fg"><label className="fl">Description *</label><textarea className="fta" placeholder="Décrivez votre article…" value={pDesc} onChange={e=>setPDesc(e.target.value)}/></div>
           <PhotoUploader photos={pPhotos} setPhotos={setPPhotos}/>
           <div className="fg"><label className="utog"><div className={`tog${pUrg?" on":""}`} onClick={()=>setPUrg(p=>!p)}/><span style={{fontSize:13,color:"var(--dark)",fontWeight:700}}>⚡ Marquer comme urgent</span></label></div>
-          <button className="fb" onClick={postAd} disabled={submitting}>{submitting ? "Publication…" : "Publier l'annonce →"}</button>
+          <button className="fb" onClick={postAd} disabled={submitting}>{submitting ? "Enregistrement…" : editAd ? "Enregistrer les modifications →" : "Publier l'annonce →"}</button>
         </div>
       </div><Footer/>
     </div>
@@ -508,7 +533,10 @@ export default function YoMan() {
                   <div className="ctitle">{a.titre}</div>
                   <div className="cprix">{a.prix}</div>
                   <div className="clieu">📍 {a.quartier}, {a.ville}</div>
-                  <button className="del-btn" onClick={e => { e.stopPropagation(); deleteAd(a.id); }}>🗑️ Supprimer l'annonce</button>
+                  <div style={{display:"flex",gap:8,marginTop:8}}>
+                    <button className="del-btn" style={{background:"#EBF2FF",color:"var(--blue)",border:"2px solid var(--border)"}} onClick={e => { e.stopPropagation(); startEdit(a); }}>✏️ Modifier</button>
+                    <button className="del-btn" onClick={e => { e.stopPropagation(); deleteAd(a.id); }}>🗑️ Supprimer</button>
+                  </div>
                 </div>
               </div>
             ))}</div>
