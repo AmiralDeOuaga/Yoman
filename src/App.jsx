@@ -1,7 +1,20 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { db, auth } from "./firebase";
+import {
+  collection, addDoc, getDocs, query, orderBy, serverTimestamp
+} from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile
+} from "firebase/auth";
 
+// ─────────────────────────────────────────────────────────────
 const CLOUDINARY_CLOUD_NAME    = "dw4clwa2b";
 const CLOUDINARY_UPLOAD_PRESET = "yo man";
+// ─────────────────────────────────────────────────────────────
 
 const categories = [
   { id: "immobilier",   label: "Immobilier",   icon: "🏠" },
@@ -9,16 +22,6 @@ const categories = [
   { id: "electronique", label: "Électronique", icon: "📱" },
 ];
 
-const INIT_ANNONCES = [
-  { id:1, categorie:"immobilier",   titre:"Villa F4 à Ouaga 2000",    prix:"85 000 000 FCFA", ville:"Ouagadougou",    quartier:"Ouaga 2000",  description:"Belle villa de 4 pièces avec piscine, garage 2 voitures, jardin arboré.", whatsapp:"22670000001", date:"Il y a 2 jours", vendeur:"Moussa K.",  urgent:true,  emoji:"🏡", userId:1, photos:[] },
-  { id:2, categorie:"vehicules",    titre:"Toyota Land Cruiser 2019", prix:"18 500 000 FCFA", ville:"Bobo-Dioulasso", quartier:"Secteur 22",  description:"Land Cruiser V8 en excellent état, full options, 45 000 km. Dédouané.",  whatsapp:"22671000002", date:"Il y a 1 jour",  vendeur:"Aminata S.", urgent:false, emoji:"🚙", userId:2, photos:[] },
-  { id:3, categorie:"electronique", titre:"iPhone 14 Pro Max 256Go",  prix:"450 000 FCFA",    ville:"Ouagadougou",    quartier:"Pissy",       description:"iPhone 14 Pro Max couleur Or. Acheté en Europe, sous garantie.",         whatsapp:"22672000003", date:"Il y a 3 h",     vendeur:"Ibrahim T.", urgent:true,  emoji:"📱", userId:3, photos:[] },
-  { id:4, categorie:"immobilier",   titre:"Terrain 600m² à Tanghin",  prix:"12 000 000 FCFA", ville:"Ouagadougou",    quartier:"Tanghin",     description:"Terrain viabilisé, titre foncier disponible. Idéal pour construction.",  whatsapp:"22673000004", date:"Il y a 5 jours", vendeur:"Fatou D.",   urgent:false, emoji:"🌍", userId:4, photos:[] },
-  { id:5, categorie:"electronique", titre:"MacBook Pro M2 2023",      prix:"1 200 000 FCFA",  ville:"Ouagadougou",    quartier:"Zone du Bois",description:"MacBook Pro 13\" M2, 16 Go RAM, 512 Go SSD. Très peu utilisé.",          whatsapp:"22674000005", date:"Il y a 1 sem.",  vendeur:"Seydou B.",  urgent:false, emoji:"💻", userId:5, photos:[] },
-  { id:6, categorie:"vehicules",    titre:"Moto Jakarta 125cc 2022",  prix:"650 000 FCFA",    ville:"Koudougou",      quartier:"Centre",      description:"Moto en bon état, révision faite. Carte grise et assurance incluses.",   whatsapp:"22675000006", date:"Il y a 2 jours", vendeur:"Adama W.",   urgent:false, emoji:"🏍️", userId:6, photos:[] },
-];
-
-const INIT_USERS = [{ id:1, nom:"Moussa Kaboré", tel:"70000001", whatsapp:"22670000001", password:"1234" }];
 const catEmojis  = { immobilier:"🏡", vehicules:"🚗", electronique:"📱" };
 const villes     = ["Ouagadougou","Bobo-Dioulasso","Koudougou","Ouahigouya","Banfora","Dédougou","Fada N'Gourma","Tenkodogo"];
 const waLink     = (num, titre) => `https://wa.me/${num}?text=${encodeURIComponent(`Bonjour ! Je suis intéressé(e) par votre annonce "${titre}" sur YoMan!`)}`;
@@ -33,61 +36,31 @@ async function uploadToCloudinary(file) {
   throw new Error(data.error?.message || "Upload échoué");
 }
 
-// ── LOGO SVG — inspiré du logo YoMan! (sac + poignée de main) ─
+// ── LOGOS ─────────────────────────────────────────────────────
 const YoManLogo = ({ variant = "white", height = 48 }) => {
   const isWhite = variant === "white";
   const bagBlue  = isWhite ? "rgba(255,255,255,0.22)" : "#1756C8";
   const bagDark  = isWhite ? "rgba(255,255,255,0.38)" : "#0A2463";
   const bagBorder= isWhite ? "rgba(255,255,255,0.6)"  : "#0A2463";
   const handleC  = "#FFD93D";
-  const textYo   = isWhite ? "#FFFFFF"                : "#0A2463";
   const textMan  = isWhite ? "#FFD93D"                : "#1756C8";
   const subBg    = isWhite ? "rgba(255,255,255,0.18)" : "#1756C8";
   const subText  = isWhite ? "#FFD93D"                : "#FFFFFF";
-
   const w = height * 3.2;
   return (
     <svg width={w} height={height} viewBox="0 0 228 60" fill="none" xmlns="http://www.w3.org/2000/svg" style={{maxWidth:"100%"}}>
-      {/* ── Sac shopping ── */}
-      {/* Corps du sac */}
       <rect x="2" y="20" width="46" height="36" rx="5" fill={bagBlue} stroke={bagBorder} strokeWidth="2"/>
-      {/* Côté droit du sac (volume) */}
       <rect x="43" y="23" width="8" height="30" rx="3" fill={bagDark} opacity="0.5"/>
-      {/* Poignée gauche */}
       <path d="M13 20 C13 10 22 6 25 6 C28 6 37 10 37 20" stroke={handleC} strokeWidth="4" strokeLinecap="round" fill="none"/>
-      {/* Brillance sac */}
       <rect x="6" y="24" width="8" height="18" rx="3" fill="white" opacity="0.18"/>
-      {/* Étoile brillance */}
-      <path d="M46 22 L47.5 19 L49 22 L52 23.5 L49 25 L47.5 28 L46 25 L43 23.5 Z" fill={handleC} opacity="0.9"/>
-
-      {/* ── Texte YoMan! ── */}
+      <path d="M42 22 L43 19 L44 22 L47 23.5 L44 25 L43 28 L42 25 L39 23.5 Z" fill={handleC} opacity="0.9"/>
       <text x="60" y="30" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="22" fill="white" stroke={textMan} strokeWidth="1.2" paintOrder="stroke" letterSpacing="-1">Yo</text>
       <text x="88" y="30" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="22" fill={textMan} letterSpacing="-1">Man!</text>
-
-      {/* ── Bandeau tagline ── */}
       <rect x="60" y="36" width="162" height="18" rx="9" fill={subBg}/>
       <text x="141" y="49" fontFamily="'Montserrat',sans-serif" fontWeight="700" fontSize="8" fill={subText} letterSpacing="0.8" textAnchor="middle">· ENTRE PARTICULIERS ·</text>
     </svg>
   );
 };
-
-// ── Logo icône seul (pour favicon / splash) ────────────────────
-const YoManIcon = ({ size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="60" height="60" rx="14" fill="#1756C8"/>
-    <rect x="8" y="22" width="38" height="30" rx="4" fill="#2A6FD8" stroke="#0A2463" strokeWidth="1.5"/>
-    <rect x="40" y="25" width="7" height="24" rx="3" fill="#0A2463" opacity="0.45"/>
-    <path d="M18 22 C18 13 24 9 27 9 C30 9 36 13 36 22" stroke="#FFD93D" strokeWidth="3.5" strokeLinecap="round" fill="none"/>
-    <rect x="10" y="26" width="7" height="14" rx="2.5" fill="white" opacity="0.15"/>
-    <g transform="translate(10,29)">
-      <path d="M1 10 C1 7 3.5 6 6 6.5 L13 6.5 C14.5 6.5 15.5 7.5 15.5 9 L15.5 14 C15.5 15.5 14.5 16.5 13 16.5 L4 16.5 C2.5 16.5 1 15 1 13 Z" fill="white" opacity="0.92"/>
-      <path d="M15.5 7.5 C17 5.5 20 5.5 21.5 7.5 L26.5 13 C28 15 27 17.5 25 18.5 L18 18.5 C16.5 18.5 15.5 17 15.5 15 Z" fill="white" opacity="0.75"/>
-      <circle cx="15.5" cy="11" r="3.5" fill="white" opacity="0.95"/>
-      <path d="M5 6.5 L5 3 M8.5 6.5 L8.5 2.5 M12 6.5 L12 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.65"/>
-    </g>
-    <path d="M42 20 L43 17.5 L44 20 L46.5 21 L44 22 L43 24.5 L42 22 L39.5 21 Z" fill="#FFD93D"/>
-  </svg>
-);
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Nunito:wght@400;500;600;700&display=swap');
@@ -106,7 +79,7 @@ const styles = `
   .huser { font-size:13px; color:rgba(255,255,255,.75); }
   .huser strong { color:var(--gold); }
   .btn-p { background:var(--gold); color:var(--dark); border:none; border-radius:10px; padding:9px 18px; font-size:13px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; }
-  .btn-p:hover { background:#FFC800; transform:translateY(-1px); box-shadow:0 4px 14px rgba(255,217,61,.4); }
+  .btn-p:hover { background:#FFC800; transform:translateY(-1px); }
   .btn-o { background:rgba(255,255,255,.12); color:white; border:1.5px solid rgba(255,255,255,.25); border-radius:10px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Nunito',sans-serif; transition:all .2s; }
   .btn-o:hover { background:rgba(255,255,255,.22); }
 
@@ -127,10 +100,9 @@ const styles = `
   .fta:focus { border-color:var(--blue); background:white; }
   .fb { width:100%; background:linear-gradient(135deg,var(--blue),var(--dark)); color:white; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; margin-top:6px; transition:all .2s; }
   .fb:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(23,86,200,.35); }
+  .fb:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
   .ferr { background:#FEF2F2; border:1.5px solid #FCA5A5; border-radius:10px; padding:10px 14px; font-size:13px; color:#DC2626; margin-bottom:14px; font-weight:600; }
   .fhint { font-size:11px; color:var(--muted); margin-top:3px; }
-  .demo-box { background:var(--bg); border-radius:10px; padding:10px 14px; text-align:center; margin-top:14px; font-size:12px; color:var(--muted); }
-  .demo-box strong { color:var(--blue); }
   .frow { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .utog { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
   .tog { width:44px; height:24px; border-radius:12px; background:var(--border); position:relative; transition:background .25s; flex-shrink:0; }
@@ -160,7 +132,6 @@ const styles = `
   .sbar { display:flex; max-width:540px; margin:0 auto 28px; background:white; border-radius:14px; overflow:hidden; box-shadow:0 12px 40px rgba(10,36,99,.25); }
   .sbar input { flex:1; padding:15px 18px; border:none; outline:none; font-size:14px; font-family:'Nunito',sans-serif; color:var(--text); }
   .sbar button { background:var(--gold); color:var(--dark); border:none; padding:13px 22px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Montserrat',sans-serif; }
-  .sbar button:hover { background:#FFC800; }
   .stats { display:flex; justify-content:center; gap:40px; flex-wrap:wrap; }
   .stn { font-size:24px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
   .stl { font-size:11px; color:rgba(255,255,255,.55); text-transform:uppercase; letter-spacing:1.5px; margin-top:2px; }
@@ -212,7 +183,6 @@ const styles = `
   .mimg-emoji { height:230px; display:flex; align-items:center; justify-content:center; font-size:80px; }
   .mimg-nav { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 10px; }
   .mnav-btn { background:rgba(10,36,99,.5); color:white; border:none; border-radius:50%; width:34px; height:34px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-  .mnav-btn:hover { background:rgba(10,36,99,.8); }
   .mimg-dots { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:5px; }
   .mdot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.5); }
   .mdot.on { background:white; }
@@ -238,6 +208,7 @@ const styles = `
   .pstats { display:flex; gap:24px; margin-top:10px; }
   .psn { font-size:22px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
   .psl { font-size:11px; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:1px; }
+  .loading { display:flex; align-items:center; justify-content:center; min-height:100vh; font-size:24px; }
   .empty { text-align:center; padding:52px 20px; color:var(--muted); }
   .eico { font-size:44px; margin-bottom:12px; }
   .emsg { font-size:15px; font-weight:600; }
@@ -324,100 +295,167 @@ function ModalImage({ annonce }) {
 }
 
 export default function YoMan() {
-  const [users,setUsers]         = useState(INIT_USERS);
-  const [annonces,setAnnonces]   = useState(INIT_ANNONCES);
-  const [user,setUser]           = useState(null);
-  const [authTab,setAuthTab]     = useState("login");
-  const [page,setPage]           = useState("home");
-  const [catActive,setCat]       = useState("tous");
-  const [searchInput,setSI]      = useState("");
-  const [search,setSearch]       = useState("");
-  const [selected,setSelected]   = useState(null);
-  const [authErr,setAuthErr]     = useState("");
-  const [postOk,setPostOk]       = useState(false);
-  const [nextId,setNextId]       = useState(100);
-  const [lTel,setLTel]=useState(""); const [lPwd,setLPwd]=useState("");
-  const [rNom,setRNom]=useState(""); const [rTel,setRTel]=useState("");
-  const [rWa,setRWa]=useState("");   const [rPwd,setRPwd]=useState("");
+  const [user, setUser]           = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [annonces, setAnnonces]   = useState([]);
+  const [authTab, setAuthTab]     = useState("login");
+  const [page, setPage]           = useState("home");
+  const [catActive, setCat]       = useState("tous");
+  const [searchInput, setSI]      = useState("");
+  const [search, setSearch]       = useState("");
+  const [selected, setSelected]   = useState(null);
+  const [authErr, setAuthErr]     = useState("");
+  const [postOk, setPostOk]       = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Auth fields
+  const [lEmail,setLEmail]=useState(""); const [lPwd,setLPwd]=useState("");
+  const [rNom,setRNom]=useState("");     const [rEmail,setREmail]=useState("");
+  const [rTel,setRTel]=useState("");     const [rWa,setRWa]=useState("");
+  const [rPwd,setRPwd]=useState("");
+
+  // Post fields
   const [pTitre,setPTitre]=useState(""); const [pCat,setPCat]=useState("immobilier");
   const [pPrix,setPPrix]=useState("");   const [pVille,setPVille]=useState("Ouagadougou");
   const [pQ,setPQ]=useState("");         const [pDesc,setPDesc]=useState("");
   const [pUrg,setPUrg]=useState(false);  const [pPhotos,setPPhotos]=useState([]);
 
-  const login = () => {
-    setAuthErr("");
-    const u = users.find(u=>u.tel===lTel&&u.password===lPwd);
-    if (!u){setAuthErr("Numéro ou mot de passe incorrect.");return;}
-    setUser(u);
-  };
-  const register = () => {
-    setAuthErr("");
-    if(!rNom||!rTel||!rPwd){setAuthErr("Veuillez remplir tous les champs obligatoires.");return;}
-    if(users.find(u=>u.tel===rTel)){setAuthErr("Ce numéro est déjà enregistré.");return;}
-    const nu={id:Date.now(),nom:rNom,tel:rTel,whatsapp:rWa||rTel,password:rPwd};
-    setUsers(p=>[...p,nu]); setUser(nu);
-  };
-  const postAd = () => {
-    if(!pTitre||!pPrix||!pQ||!pDesc) return;
-    const na={id:nextId,categorie:pCat,titre:pTitre,prix:pPrix+" FCFA",ville:pVille,quartier:pQ,description:pDesc,whatsapp:user.whatsapp,date:"À l'instant",vendeur:user.nom,urgent:pUrg,emoji:catEmojis[pCat],userId:user.id,photos:pPhotos};
-    setAnnonces(p=>[na,...p]); setNextId(n=>n+1);
-    setPTitre(""); setPPrix(""); setPQ(""); setPDesc(""); setPUrg(false); setPPhotos([]);
-    setPostOk(true);
-    setTimeout(()=>{setPostOk(false);setPage("home");},2000);
+  // Auth listener
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => {
+      setUser(u);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  // Load annonces
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const q = query(collection(db, "annonces"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        setAnnonces(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch(e) { console.error(e); }
+    };
+    load();
+  }, []);
+
+  const login = async () => {
+    setAuthErr(""); setSubmitting(true);
+    try {
+      await signInWithEmailAndPassword(auth, lEmail, lPwd);
+    } catch(e) {
+      setAuthErr("Email ou mot de passe incorrect.");
+    }
+    setSubmitting(false);
   };
 
-  const myAds    = annonces.filter(a=>a.userId===user?.id);
-  const filtered = annonces.filter(a=>{
-    const mc=catActive==="tous"||a.categorie===catActive;
-    const ms=search===""||[a.titre,a.description,a.ville].some(s=>s.toLowerCase().includes(search.toLowerCase()));
-    return mc&&ms;
+  const register = async () => {
+    setAuthErr(""); setSubmitting(true);
+    if (!rNom||!rEmail||!rTel||!rPwd) { setAuthErr("Veuillez remplir tous les champs obligatoires."); setSubmitting(false); return; }
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, rEmail, rPwd);
+      await updateProfile(cred.user, { displayName: rNom });
+      // Save extra info to Firestore
+      await addDoc(collection(db, "users"), {
+        uid: cred.user.uid, nom: rNom, email: rEmail,
+        tel: rTel, whatsapp: rWa || rTel, createdAt: serverTimestamp()
+      });
+    } catch(e) {
+      setAuthErr(e.code === "auth/email-already-in-use" ? "Cet email est déjà utilisé." : "Erreur lors de l'inscription.");
+    }
+    setSubmitting(false);
+  };
+
+  const postAd = async () => {
+    if (!pTitre||!pPrix||!pQ||!pDesc) return;
+    setSubmitting(true);
+    try {
+      const na = {
+        categorie: pCat, titre: pTitre, prix: pPrix + " FCFA",
+        ville: pVille, quartier: pQ, description: pDesc,
+        whatsapp: rWa || rTel || user.email,
+        vendeur: user.displayName || user.email,
+        urgent: pUrg, emoji: catEmojis[pCat],
+        userId: user.uid, photos: pPhotos,
+        createdAt: serverTimestamp()
+      };
+      const doc = await addDoc(collection(db, "annonces"), na);
+      setAnnonces(p => [{ id: doc.id, ...na, date: "À l'instant" }, ...p]);
+      setPTitre(""); setPPrix(""); setPQ(""); setPDesc(""); setPUrg(false); setPPhotos([]);
+      setPostOk(true);
+      setTimeout(() => { setPostOk(false); setPage("home"); }, 2000);
+    } catch(e) { alert("Erreur : " + e.message); }
+    setSubmitting(false);
+  };
+
+  const logout = () => { signOut(auth); setPage("home"); };
+
+  const myAds = annonces.filter(a => a.userId === user?.uid);
+  const filtered = annonces.filter(a => {
+    const mc = catActive === "tous" || a.categorie === catActive;
+    const ms = search === "" || [a.titre, a.description, a.ville].some(s => s?.toLowerCase().includes(search.toLowerCase()));
+    return mc && ms;
   });
 
-  const Header = ({showPost=true}) => (
+  const formatDate = (ts) => {
+    if (!ts) return "À l'instant";
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    const diff = Math.floor((Date.now() - d) / 60000);
+    if (diff < 60) return `Il y a ${diff} min`;
+    if (diff < 1440) return `Il y a ${Math.floor(diff/60)} h`;
+    return `Il y a ${Math.floor(diff/1440)} j`;
+  };
+
+  const Header = ({ showPost = true }) => (
     <header className="hdr"><div className="hdr-in">
-      <div style={{cursor:"pointer"}} onClick={()=>setPage("home")}><YoManLogo variant="white" height={40}/></div>
+      <div style={{cursor:"pointer"}} onClick={() => setPage("home")}><YoManLogo variant="white" height={40}/></div>
       <div className="hdr-r">
-        {user&&<span className="huser">Salut, <strong>{user.nom.split(" ")[0]}</strong> 👋</span>}
-        <button className="btn-o" onClick={()=>setPage("profile")}>Mon profil</button>
-        {showPost&&<button className="btn-p" onClick={()=>setPage("post")}>+ Annonce</button>}
-        <button className="btn-o" onClick={()=>setUser(null)} title="Déconnexion">⏻</button>
+        {user && <span className="huser">Salut, <strong>{user.displayName?.split(" ")[0]}</strong> 👋</span>}
+        <button className="btn-o" onClick={() => setPage("profile")}>Mon profil</button>
+        {showPost && <button className="btn-p" onClick={() => setPage("post")}>+ Annonce</button>}
+        <button className="btn-o" onClick={logout} title="Déconnexion">⏻</button>
       </div>
     </div></header>
   );
+
   const Footer = () => (
     <footer className="footer"><strong>YoMan!</strong> &nbsp;·&nbsp; Vente entre particuliers · Burkina Faso · 2026</footer>
   );
+
+  if (loading) return <div className="loading">⏳</div>;
 
   // AUTH
   if (!user) return (<><style>{styles}</style>
     <div className="auth-wrap"><div className="auth-box">
       <div className="auth-logo-wrap"><YoManLogo variant="color" height={56}/></div>
       <div className="tabs">
-        <button className={`tab${authTab==="login"?" on":""}`} onClick={()=>{setAuthTab("login");setAuthErr("");}}>Se connecter</button>
-        <button className={`tab${authTab==="register"?" on":""}`} onClick={()=>{setAuthTab("register");setAuthErr("");}}>S'inscrire</button>
+        <button className={`tab${authTab==="login"?" on":""}`} onClick={() => { setAuthTab("login"); setAuthErr(""); }}>Se connecter</button>
+        <button className={`tab${authTab==="register"?" on":""}`} onClick={() => { setAuthTab("register"); setAuthErr(""); }}>S'inscrire</button>
       </div>
-      {authErr&&<div className="ferr">⚠️ {authErr}</div>}
-      {authTab==="login"?<>
-        <div className="fg"><label className="fl">Numéro de téléphone</label><input className="fi" placeholder="Ex : 70123456" value={lTel} onChange={e=>setLTel(e.target.value)}/></div>
+      {authErr && <div className="ferr">⚠️ {authErr}</div>}
+      {authTab === "login" ? <>
+        <div className="fg"><label className="fl">Email</label><input className="fi" type="email" placeholder="votre@email.com" value={lEmail} onChange={e=>setLEmail(e.target.value)}/></div>
         <div className="fg"><label className="fl">Mot de passe</label><input className="fi" type="password" placeholder="••••••••" value={lPwd} onChange={e=>setLPwd(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}/></div>
-        <button className="fb" onClick={login}>Se connecter →</button>
-        <div className="demo-box">Compte démo : <strong>70000001</strong> / <strong>1234</strong></div>
-      </>:<>
+        <button className="fb" onClick={login} disabled={submitting}>{submitting ? "Connexion…" : "Se connecter →"}</button>
+      </> : <>
         <div className="fg"><label className="fl">Nom complet *</label><input className="fi" placeholder="Ex : Moussa Kaboré" value={rNom} onChange={e=>setRNom(e.target.value)}/></div>
+        <div className="fg"><label className="fl">Email *</label><input className="fi" type="email" placeholder="votre@email.com" value={rEmail} onChange={e=>setREmail(e.target.value)}/></div>
         <div className="fg"><label className="fl">Numéro de téléphone *</label><input className="fi" placeholder="Ex : 70123456" value={rTel} onChange={e=>setRTel(e.target.value)}/></div>
         <div className="fg"><label className="fl">Numéro WhatsApp (avec indicatif)</label><input className="fi" placeholder="Ex : 22670123456" value={rWa} onChange={e=>setRWa(e.target.value)}/><div className="fhint">Laisser vide = même que téléphone</div></div>
-        <div className="fg"><label className="fl">Mot de passe *</label><input className="fi" type="password" placeholder="Choisissez un mot de passe" value={rPwd} onChange={e=>setRPwd(e.target.value)}/></div>
-        <button className="fb" onClick={register}>Créer mon compte →</button>
+        <div className="fg"><label className="fl">Mot de passe *</label><input className="fi" type="password" placeholder="Minimum 6 caractères" value={rPwd} onChange={e=>setRPwd(e.target.value)}/></div>
+        <button className="fb" onClick={register} disabled={submitting}>{submitting ? "Création…" : "Créer mon compte →"}</button>
       </>}
     </div></div>
   </>);
 
   // POST
-  if (page==="post") return (<><style>{styles}</style>
+  if (page === "post") return (<><style>{styles}</style>
     <div className="app"><Header showPost={false}/>
       <div className="pscreen">
-        <button className="pback" onClick={()=>setPage("home")}>← Retour</button>
-        {postOk&&<div className="succ">✅ Annonce publiée !</div>}
+        <button className="pback" onClick={() => setPage("home")}>← Retour</button>
+        {postOk && <div className="succ">✅ Annonce publiée !</div>}
         <div className="pcard">
           <div className="ptitle">📝 Déposer une annonce</div>
           <div className="fg"><label className="fl">Catégorie *</label><select className="fs" value={pCat} onChange={e=>setPCat(e.target.value)}>{categories.map(c=><option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}</select></div>
@@ -430,34 +468,35 @@ export default function YoMan() {
           <div className="fg"><label className="fl">Description *</label><textarea className="fta" placeholder="Décrivez votre article…" value={pDesc} onChange={e=>setPDesc(e.target.value)}/></div>
           <PhotoUploader photos={pPhotos} setPhotos={setPPhotos}/>
           <div className="fg"><label className="utog"><div className={`tog${pUrg?" on":""}`} onClick={()=>setPUrg(p=>!p)}/><span style={{fontSize:13,color:"var(--dark)",fontWeight:700}}>⚡ Marquer comme urgent</span></label></div>
-          <button className="fb" onClick={postAd}>Publier l'annonce →</button>
+          <button className="fb" onClick={postAd} disabled={submitting}>{submitting ? "Publication…" : "Publier l'annonce →"}</button>
         </div>
       </div><Footer/>
     </div>
   </>);
 
   // PROFILE
-  if (page==="profile") return (<><style>{styles}</style>
+  if (page === "profile") return (<><style>{styles}</style>
     <div className="app"><Header/>
       <div className="profscreen">
-        <button className="pback" onClick={()=>setPage("home")}>← Retour</button>
+        <button className="pback" onClick={() => setPage("home")}>← Retour</button>
         <div className="profhead">
-          <div className="avatar">{user.nom[0]}</div>
+          <div className="avatar">{user.displayName?.[0] || "?"}</div>
           <div className="pinfo">
-            <h2>{user.nom}</h2>
-            <p>📞 {user.tel} · 💬 {user.whatsapp}</p>
+            <h2>{user.displayName}</h2>
+            <p>📧 {user.email}</p>
             <div className="pstats"><div><div className="psn">{myAds.length}</div><div className="psl">Annonces</div></div></div>
           </div>
         </div>
         <div className="stitle">Mes annonces</div>
-        {myAds.length===0
-          ?<div className="empty"><div className="eico">📭</div><div className="emsg">Aucune annonce publiée</div></div>
-          :<div className="grid">{myAds.map(a=>(
-            <div key={a.id} className="card" onClick={()=>setSelected(a)}>
-              <CardImage annonce={a}/>
-              <div className="cbody"><div className="ctitle">{a.titre}</div><div className="cprix">{a.prix}</div><div className="clieu">📍 {a.quartier}, {a.ville}</div></div>
-            </div>
-          ))}</div>}
+        {myAds.length === 0
+          ? <div className="empty"><div className="eico">📭</div><div className="emsg">Aucune annonce publiée</div></div>
+          : <div className="grid">{myAds.map(a => (
+              <div key={a.id} className="card" onClick={() => setSelected(a)}>
+                <CardImage annonce={a}/>
+                <div className="cbody"><div className="ctitle">{a.titre}</div><div className="cprix">{a.prix}</div><div className="clieu">📍 {a.quartier}, {a.ville}</div></div>
+              </div>
+            ))}</div>
+        }
       </div><Footer/>
     </div>
   </>);
@@ -469,14 +508,13 @@ export default function YoMan() {
         <div className="hero-blur1"/><div className="hero-blur2"/>
         <div className="hero-logo"><YoManLogo variant="white" height={64}/></div>
         <h1>Vente entre particuliers<br/><em>partout au Burkina !</em></h1>
-        <p>Achète, vends, échange — gratuit, simple et entre particuliers 🇧🇫</p>
+        <p>Achète, vends, échange — gratuit, simple et en confiance 🇧🇫</p>
         <div className="sbar">
           <input placeholder="Que cherchez-vous ?" value={searchInput} onChange={e=>setSI(e.target.value)} onKeyDown={e=>e.key==="Enter"&&setSearch(searchInput)}/>
-          <button onClick={()=>setSearch(searchInput)}>Rechercher</button>
+          <button onClick={() => setSearch(searchInput)}>Rechercher</button>
         </div>
         <div className="stats">
           <div className="stat"><div className="stn">{annonces.length}</div><div className="stl">Annonces</div></div>
-          <div className="stat"><div className="stn">{users.length}</div><div className="stl">Membres</div></div>
           <div className="stat"><div className="stn">14</div><div className="stl">Villes</div></div>
         </div>
       </section>
@@ -488,30 +526,31 @@ export default function YoMan() {
           {categories.map(c=><button key={c.id} className={`cbt${catActive===c.id?" on":""}`} onClick={()=>setCat(c.id)}>{c.icon} {c.label}</button>)}
         </div>
         <div className="stitle">{filtered.length} annonce{filtered.length!==1?"s":""}{search?` pour « ${search} »`:""}</div>
-        {filtered.length===0
-          ?<div className="empty"><div className="eico">🔍</div><div className="emsg">Aucune annonce trouvée</div></div>
-          :<div className="grid">{filtered.map(a=>(
-            <div key={a.id} className="card" onClick={()=>setSelected(a)}>
-              <div style={{position:"relative"}}>
-                <CardImage annonce={a}/>
-                {a.userId===user.id&&<span className="bmine">Ma annonce</span>}
-              </div>
-              <div className="cbody">
-                <div className="ctitle">{a.titre}</div>
-                <div className="cprix">{a.prix}</div>
-                <div className="clieu">📍 {a.quartier}, {a.ville}</div>
-                <div className="cdesc">{a.description}</div>
-                <div className="cfoot">
-                  <div className="cvend"><strong>{a.vendeur}</strong>{a.date}</div>
-                  <a className="wabtn" href={waLink(a.whatsapp,a.titre)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>💬 WhatsApp</a>
+        {filtered.length === 0
+          ? <div className="empty"><div className="eico">🔍</div><div className="emsg">Aucune annonce trouvée</div></div>
+          : <div className="grid">{filtered.map(a => (
+              <div key={a.id} className="card" onClick={() => setSelected(a)}>
+                <div style={{position:"relative"}}>
+                  <CardImage annonce={a}/>
+                  {a.userId === user.uid && <span className="bmine">Ma annonce</span>}
+                </div>
+                <div className="cbody">
+                  <div className="ctitle">{a.titre}</div>
+                  <div className="cprix">{a.prix}</div>
+                  <div className="clieu">📍 {a.quartier}, {a.ville}</div>
+                  <div className="cdesc">{a.description}</div>
+                  <div className="cfoot">
+                    <div className="cvend"><strong>{a.vendeur}</strong>{formatDate(a.createdAt)}</div>
+                    <a className="wabtn" href={waLink(a.whatsapp, a.titre)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>💬 WhatsApp</a>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}</div>}
+            ))}</div>
+        }
       </div>
 
-      {selected&&(
-        <div className="moverlay" onClick={()=>setSelected(null)}>
+      {selected && (
+        <div className="moverlay" onClick={() => setSelected(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <ModalImage annonce={selected}/>
             <div className="mbody">
@@ -520,12 +559,12 @@ export default function YoMan() {
               <div className="mmeta">
                 <span>📍 {selected.quartier}, {selected.ville}</span>
                 <span>👤 {selected.vendeur}</span>
-                <span>🕐 {selected.date}</span>
+                <span>🕐 {formatDate(selected.createdAt)}</span>
               </div>
               <div className="mdesc">{selected.description}</div>
               <div className="macts">
-                <button className="mclose" onClick={()=>setSelected(null)}>Fermer</button>
-                <a className="mwa" href={waLink(selected.whatsapp,selected.titre)} target="_blank" rel="noopener noreferrer">💬 Contacter sur WhatsApp</a>
+                <button className="mclose" onClick={() => setSelected(null)}>Fermer</button>
+                <a className="mwa" href={waLink(selected.whatsapp, selected.titre)} target="_blank" rel="noopener noreferrer">💬 Contacter sur WhatsApp</a>
               </div>
             </div>
           </div>
