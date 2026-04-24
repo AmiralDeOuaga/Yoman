@@ -468,6 +468,16 @@ export default function YoMan() {
 
   const logout = () => { signOut(auth); setPage("home"); setFavoris([]); };
 
+  const openAd = async (a) => {
+    setSelected(a);
+    // Incrémenter les vues
+    try {
+      const ref = doc(db, "annonces", a.id);
+      await updateDoc(ref, { vues: (a.vues || 0) + 1 });
+      setAnnonces(p => p.map(x => x.id === a.id ? {...x, vues: (x.vues||0)+1} : x));
+    } catch(e) { console.error(e); }
+  };
+
   const toggleFavori = async (id) => {
     const ref = doc(db, "favoris", user.uid);
     const isFav = favoris.includes(id);
@@ -669,7 +679,7 @@ export default function YoMan() {
           ? <div className="empty"><div className="eico">🔍</div><div className="emsg">Aucune annonce trouvée</div></div>
           : <>
             <div className="grid">{paginatedAds.map(a => (
-              <div key={a.id} className="card" onClick={() => setSelected(a)}>
+              <div key={a.id} className="card" onClick={() => openAd(a)}>
                 <div style={{position:"relative"}}>
                   <CardImage annonce={a}/>
                   {a.userId === user.uid && <span className="bmine">Ma annonce</span>}
@@ -684,7 +694,10 @@ export default function YoMan() {
                   <div className="cdesc">{a.description}</div>
                   <div className="cfoot">
                     <div className="cvend"><strong>{a.vendeur}</strong>{formatDate(a.createdAt)}</div>
-                    <a className="wabtn" href={waLink(a.whatsapp, a.titre)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>💬 WhatsApp</a>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:11,color:"var(--muted)"}}>👁️ {a.vues||0}</span>
+                      <a className="wabtn" href={waLink(a.whatsapp, a.titre)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>💬 WhatsApp</a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -713,6 +726,7 @@ export default function YoMan() {
                 <span>📍 {selected.quartier}, {selected.ville}</span>
                 <span>👤 {selected.vendeur}</span>
                 <span>🕐 {formatDate(selected.createdAt)}</span>
+                <span>👁️ {selected.vues||0} vue{(selected.vues||0)!==1?"s":""}</span>
               </div>
               <div className="mdesc">{selected.description}</div>
               <div className="macts">
