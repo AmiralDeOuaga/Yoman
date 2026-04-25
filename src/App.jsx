@@ -39,28 +39,34 @@ async function uploadToCloudinary(file) {
   throw new Error(data.error?.message || "Upload échoué");
 }
 
-// ── LOGOS ─────────────────────────────────────────────────────
+// ── LOGO — Yo! dans un carré arrondi ──────────────────────────
 const YoManLogo = ({ variant = "white", height = 48 }) => {
   const isWhite = variant === "white";
-  const bagBlue  = isWhite ? "rgba(255,255,255,0.22)" : "#1756C8";
-  const bagDark  = isWhite ? "rgba(255,255,255,0.38)" : "#0A2463";
-  const bagBorder= isWhite ? "rgba(255,255,255,0.6)"  : "#0A2463";
-  const handleC  = "#FFD93D";
-  const textMan  = isWhite ? "#FFD93D"                : "#1756C8";
-  const subBg    = isWhite ? "rgba(255,255,255,0.18)" : "#1756C8";
-  const subText  = isWhite ? "#FFD93D"                : "#FFFFFF";
-  const w = height * 3.2;
+  const bgColor = isWhite ? "url(#logoGrad)" : "url(#logoGrad)";
+  const bgBorder= isWhite ? "#0A2463"        : "#0A2463";
+  const subText = isWhite ? "rgba(255,255,255,0.65)" : "#6B80A8";
+  const textMan = isWhite ? "#FFD93D"                : "#1756C8";
+  const textExcl= "#FFD93D";
+  const w = height * 3.4;
   return (
-    <svg width={w} height={height} viewBox="0 0 228 60" fill="none" xmlns="http://www.w3.org/2000/svg" style={{maxWidth:"100%"}}>
-      <rect x="2" y="20" width="46" height="36" rx="5" fill={bagBlue} stroke={bagBorder} strokeWidth="2"/>
-      <rect x="43" y="23" width="8" height="30" rx="3" fill={bagDark} opacity="0.5"/>
-      <path d="M13 20 C13 10 22 6 25 6 C28 6 37 10 37 20" stroke={handleC} strokeWidth="4" strokeLinecap="round" fill="none"/>
-      <rect x="6" y="24" width="8" height="18" rx="3" fill="white" opacity="0.18"/>
-      <path d="M42 22 L43 19 L44 22 L47 23.5 L44 25 L43 28 L42 25 L39 23.5 Z" fill={handleC} opacity="0.9"/>
-      <text x="60" y="30" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="22" fill="white" stroke={textMan} strokeWidth="1.2" paintOrder="stroke" letterSpacing="-1">Yo</text>
-      <text x="88" y="30" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="22" fill={textMan} letterSpacing="-1">Man!</text>
-      <rect x="60" y="36" width="162" height="18" rx="9" fill={subBg}/>
-      <text x="141" y="49" fontFamily="'Montserrat',sans-serif" fontWeight="700" fontSize="8" fill={subText} letterSpacing="0.8" textAnchor="middle">· ENTRE PARTICULIERS ·</text>
+    <svg width={w} height={height} viewBox="0 0 204 60" fill="none" xmlns="http://www.w3.org/2000/svg" style={{maxWidth:"100%"}}>
+      <defs>
+        <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0A2463"/>
+          <stop offset="100%" stopColor="#1756C8"/>
+        </linearGradient>
+      </defs>
+      {/* Carré arrondi */}
+      <rect x="0" y="0" width="58" height="60" rx="14" fill={bgColor} stroke={bgBorder} strokeWidth="1.5"/>
+      {/* Yo et ! sur la même ligne */}
+      <text x="24" y="37" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="26" fill="white" textAnchor="middle">Yo</text>
+      <text x="46" y="37" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="26" fill={textExcl}>!</text>
+      {/* Texte YoMan! aligné verticalement au centre */}
+      <text x="70" y="25" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="20" fill="white" stroke="#1756C8" strokeWidth="2" paintOrder="stroke" letterSpacing="-0.5">Yo</text>
+      <text x="95" y="25" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="20" fill={textMan} letterSpacing="-0.5">Man</text>
+      <text x="145" y="25" fontFamily="'Montserrat','Arial Black',sans-serif" fontWeight="900" fontSize="20" fill={textExcl} letterSpacing="-0.5">!</text>
+      {/* Tagline */}
+      <text x="70" y="42" fontFamily="'Montserrat',sans-serif" fontWeight="500" fontSize="9" fill={subText} letterSpacing="0.8">· entre particuliers ·</text>
     </svg>
   );
 };
@@ -88,7 +94,7 @@ const styles = `
   .btn-o:hover { background:rgba(255,255,255,.22); }
 
   /* AUTH */
-  .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(145deg,var(--dark) 0%,#0D3380 45%,var(--blue) 75%,#38CFFF 100%); }
+  .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(145deg,var(--dark) 0%,var(--blue) 60%,#38CFFF 100%); }
   .auth-box { background:white; border-radius:28px; padding:36px 32px; max-width:400px; width:100%; box-shadow:0 32px 80px rgba(10,36,99,.38); animation:fadeUp .5s ease; }
   @keyframes fadeUp { from{transform:translateY(28px);opacity:0} to{transform:translateY(0);opacity:1} }
   .auth-logo-wrap { display:flex; justify-content:center; margin-bottom:20px; overflow:hidden; width:100%; }
@@ -130,7 +136,7 @@ const styles = `
   .photo-limit { font-size:11px; color:var(--muted); margin-top:6px; }
 
   /* HERO */
-  .hero { background:linear-gradient(135deg,var(--dark) 0%,#0D3380 40%,var(--blue) 100%); padding:52px 24px 44px; text-align:center; position:relative; overflow:hidden; }
+  .hero { background:linear-gradient(135deg,var(--dark) 0%,var(--blue) 100%); padding:52px 24px 44px; text-align:center; position:relative; overflow:hidden; }
   .hero-blur1 { position:absolute; width:380px; height:380px; background:radial-gradient(circle,rgba(56,207,255,.2) 0%,transparent 70%); top:-110px; right:-90px; pointer-events:none; }
   .hero-blur2 { position:absolute; width:260px; height:260px; background:radial-gradient(circle,rgba(255,217,61,.15) 0%,transparent 70%); bottom:-90px; left:-70px; pointer-events:none; }
   .hero-logo { margin-bottom:20px; display:flex; justify-content:center; }
@@ -691,7 +697,7 @@ export default function YoMan() {
         <div className="hero-blur1"/><div className="hero-blur2"/>
         <div className="hero-logo"><YoManLogo variant="white" height={64}/></div>
         <h1>Vente entre particuliers<br/><em>partout au Burkina !</em></h1>
-        <p>Achète, vends, échange — gratuit, simple et en confiance 🇧🇫</p>
+        <p>Achète, vends, échange — gratuit, simple et en confiance</p>
         <div className="sbar">
           <input placeholder="Que cherchez-vous ?" value={searchInput} onChange={e=>setSI(e.target.value)} onKeyDown={e=>e.key==="Enter"&&setSearch(searchInput)}/>
           <button onClick={() => setSearch(searchInput)}>Rechercher</button>
