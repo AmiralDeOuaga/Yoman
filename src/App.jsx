@@ -39,7 +39,20 @@ const catEmojis = {
   emploi:"💼", education:"📚", alimentation:"🍎",
   sante:"⚕️", animaux:"🐄"
 };
-const villes     = ["Ouagadougou","Bobo-Dioulasso","Koudougou","Ouahigouya","Banfora","Dédougou","Fada N'Gourma","Tenkodogo"];
+const villes = [
+  "Ouagadougou", "Bobo-Dioulasso", "Koudougou", "Ouahigouya", "Banfora",
+  "Dédougou", "Fada N'Gourma", "Tenkodogo", "Kaya", "Ziniaré",
+  "Kongoussi", "Manga", "Léo", "Diébougou", "Gaoua",
+  "Pô", "Réo", "Yako", "Titao", "Tougan",
+  "Nouna", "Djibo", "Dori", "Gorom-Gorom", "Sebba",
+  "Bogandé", "Gayéri", "Diapaga", "Kantchari", "Pama",
+  "Batié", "Kampti", "Dano", "Dissin", "Nako",
+  "Solenzo", "Boromo", "Sapone", "Kombissiri", "Saponé",
+  "Kokologo", "Pô", "Boulsa", "Koupéla", "Pouytenga",
+  "Zorgho", "Zorgo", "Zinigma", "Bassawarga", "Gourcy",
+  "Thiou", "Seguenega", "Ouarkoye", "Lanfiéra", "Banh",
+  "Kelbo", "Boundore", "Manni", "Bilanga", "Piela"
+];
 const waLink     = (num, titre) => `https://wa.me/${num}?text=${encodeURIComponent(`Bonjour ! Je suis intéressé(e) par votre annonce "${titre}" sur YoMan!`)}`;
 
 async function uploadToCloudinary(file) {
@@ -734,7 +747,7 @@ export default function YoMan() {
         </div>
         <div className="stats">
           <div className="stat"><div className="stn">{annonces.length}</div><div className="stl">Annonces</div></div>
-          <div className="stat"><div className="stn">14</div><div className="stl">Villes</div></div>
+          <div className="stat"><div className="stn">{villes.length}</div><div className="stl">Villes</div></div>
         </div>
       </section>
 
