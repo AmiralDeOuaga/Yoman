@@ -10,7 +10,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail
 } from "firebase/auth";
 
 // ─────────────────────────────────────────────────────────────
@@ -422,6 +423,17 @@ export default function YoMan() {
     setSubmitting(false);
   };
 
+  const forgotPassword = async () => {
+    if (!lEmail) { setAuthErr("Entre ton email pour réinitialiser ton mot de passe."); return; }
+    try {
+      await sendPasswordResetEmail(auth, lEmail);
+      setAuthErr("");
+      alert(`✅ Un email de réinitialisation a été envoyé à ${lEmail}`);
+    } catch(e) {
+      setAuthErr("Email introuvable. Vérifie l'adresse saisie.");
+    }
+  };
+
   const login = async () => {
     setAuthErr(""); setSubmitting(true);
     try {
@@ -585,6 +597,9 @@ export default function YoMan() {
       {authTab === "login" ? <>
         <div className="fg"><label className="fl">Email</label><input className="fi" type="email" placeholder="votre@email.com" value={lEmail} onChange={e=>setLEmail(e.target.value)}/></div>
         <div className="fg"><label className="fl">Mot de passe</label><input className="fi" type="password" placeholder="••••••••" value={lPwd} onChange={e=>setLPwd(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}/></div>
+        <div style={{textAlign:"right",marginBottom:8}}>
+          <span onClick={forgotPassword} style={{fontSize:12,color:"var(--blue)",cursor:"pointer",fontWeight:700}}>Mot de passe oublié ?</span>
+        </div>
         <button className="fb" onClick={login} disabled={submitting}>{submitting ? "Connexion…" : "Se connecter →"}</button>
       </> : <>
         <div className="fg"><label className="fl">Nom complet *</label><input className="fi" placeholder="Ex : Moussa Kaboré" value={rNom} onChange={e=>setRNom(e.target.value)}/></div>
