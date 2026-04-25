@@ -20,12 +20,25 @@ const CLOUDINARY_UPLOAD_PRESET = "yo man";
 // ─────────────────────────────────────────────────────────────
 
 const categories = [
-  { id: "immobilier",   label: "Immobilier",   icon: "🏠" },
-  { id: "vehicules",    label: "Véhicules",    icon: "🚗" },
-  { id: "electronique", label: "Électronique", icon: "📱" },
+  { id: "immobilier",   label: "Immobilier",       icon: "🏠" },
+  { id: "vehicules",    label: "Véhicules",         icon: "🚗" },
+  { id: "electronique", label: "Électronique",      icon: "📱" },
+  { id: "agriculture",  label: "Agriculture",       icon: "🌾" },
+  { id: "vetements",    label: "Vêtements & Mode",  icon: "👗" },
+  { id: "maison",       label: "Maison & Mobilier", icon: "🛋️" },
+  { id: "emploi",       label: "Emploi & Services", icon: "💼" },
+  { id: "education",    label: "Éducation",         icon: "📚" },
+  { id: "alimentation", label: "Alimentation",      icon: "🍎" },
+  { id: "sante",        label: "Santé & Beauté",    icon: "⚕️" },
+  { id: "animaux",      label: "Animaux",           icon: "🐄" },
 ];
 
-const catEmojis  = { immobilier:"🏡", vehicules:"🚗", electronique:"📱" };
+const catEmojis = {
+  immobilier:"🏡", vehicules:"🚗", electronique:"📱",
+  agriculture:"🌾", vetements:"👗", maison:"🛋️",
+  emploi:"💼", education:"📚", alimentation:"🍎",
+  sante:"⚕️", animaux:"🐄"
+};
 const villes     = ["Ouagadougou","Bobo-Dioulasso","Koudougou","Ouahigouya","Banfora","Dédougou","Fada N'Gourma","Tenkodogo"];
 const waLink     = (num, titre) => `https://wa.me/${num}?text=${encodeURIComponent(`Bonjour ! Je suis intéressé(e) par votre annonce "${titre}" sur YoMan!`)}`;
 
@@ -153,10 +166,26 @@ const styles = `
   /* CONTENT */
   .sec { max-width:1100px; margin:0 auto; padding:0 20px; }
   .stitle { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:800; color:var(--dark); margin:30px 0 14px; }
-  .cats { display:flex; gap:8px; flex-wrap:wrap; }
-  .cbt { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:50px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
-  .cbt:hover { border-color:var(--blue); color:var(--blue); }
-  .cbt.on { border-color:var(--blue); background:var(--blue); color:white; box-shadow:0 4px 12px rgba(23,86,200,.25); }
+
+  /* MENU CATÉGORIES */
+  .cat-toggle { display:flex; align-items:center; justify-content:space-between; background:white; border:2px solid var(--border); border-radius:14px; padding:12px 18px; cursor:pointer; margin-bottom:8px; transition:all .2s; }
+  .cat-toggle:hover { border-color:var(--blue); }
+  .cat-toggle-left { display:flex; align-items:center; gap:10px; font-family:'Montserrat',sans-serif; font-weight:700; font-size:14px; color:var(--dark); }
+  .cat-toggle-right { display:flex; align-items:center; gap:8px; }
+  .cat-active-badge { background:var(--blue); color:white; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; font-family:'Montserrat',sans-serif; }
+  .cat-arrow { font-size:12px; color:var(--muted); transition:transform .25s; }
+  .cat-arrow.open { transform:rotate(180deg); }
+  .cat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; background:white; border:2px solid var(--border); border-radius:14px; padding:14px; margin-bottom:8px; animation:fadeUp .2s ease; }
+  @media(max-width:480px) { .cat-grid { grid-template-columns:repeat(3,1fr); } }
+  .cat-item { display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 8px; border-radius:10px; border:2px solid transparent; background:var(--bg); cursor:pointer; transition:all .2s; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; color:var(--muted); text-align:center; }
+  .cat-item:hover { border-color:var(--blue); color:var(--blue); background:white; }
+  .cat-item.on { border-color:var(--blue); background:var(--blue); color:white; }
+  .cat-item-icon { font-size:24px; }
+  .cat-item-all { display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 8px; border-radius:10px; border:2px solid var(--border); background:white; cursor:pointer; transition:all .2s; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; color:var(--muted); text-align:center; }
+  .cat-item-all.on { border-color:var(--blue); background:var(--blue); color:white; }
+  .cat-item-all:hover { border-color:var(--blue); color:var(--blue); }
+  .fav-tab { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:50px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
+  .fav-tab.on { border-color:#FF6B6B; background:#FF6B6B; color:white; }
 
   /* GRID */
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); gap:18px; margin:16px 0 44px; }
@@ -364,6 +393,7 @@ export default function YoMan() {
   const [filtrePrixMin, setFiltrePrixMin] = useState("");
   const [filtrePrixMax, setFiltrePrixMax] = useState("");
   const [showFiltres, setShowFiltres] = useState(false);
+  const [showCats, setShowCats] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -710,11 +740,34 @@ export default function YoMan() {
 
       <div className="sec">
         <div className="stitle">Catégories</div>
-        <div className="cats">
-          <button className={`cbt${catActive==="tous"?" on":""}`} onClick={()=>{setCat("tous");setCurrentPage(1);}}>🗂️ Toutes</button>
-          {categories.map(c=><button key={c.id} className={`cbt${catActive===c.id?" on":""}`} onClick={()=>{setCat(c.id);setCurrentPage(1);}}>{c.icon} {c.label}</button>)}
-          <button className={`fav-tab${catActive==="favoris"?" on":""}`} onClick={()=>{setCat("favoris");setCurrentPage(1);}}>❤️ Favoris {favoris.length>0&&<span>({favoris.length})</span>}</button>
+
+        {/* Menu déroulant catégories */}
+        <div className="cat-toggle" onClick={() => setShowCats(s => !s)}>
+          <div className="cat-toggle-left">
+            <span style={{fontSize:20}}>{catActive === "tous" ? "🗂️" : catActive === "favoris" ? "❤️" : categories.find(c=>c.id===catActive)?.icon}</span>
+            <span>{catActive === "tous" ? "Toutes les catégories" : catActive === "favoris" ? "Mes favoris" : categories.find(c=>c.id===catActive)?.label}</span>
+          </div>
+          <div className="cat-toggle-right">
+            {catActive !== "tous" && catActive !== "favoris" && <span className="cat-active-badge">{categories.find(c=>c.id===catActive)?.label}</span>}
+            <span className={`cat-arrow${showCats ? " open" : ""}`}>▼</span>
+          </div>
         </div>
+
+        {showCats && (
+          <div className="cat-grid">
+            <div className={`cat-item-all${catActive==="tous"?" on":""}`} onClick={()=>{setCat("tous");setCurrentPage(1);setShowCats(false);}}>
+              <span className="cat-item-icon">🗂️</span>Toutes
+            </div>
+            {categories.map(c => (
+              <div key={c.id} className={`cat-item${catActive===c.id?" on":""}`} onClick={()=>{setCat(c.id);setCurrentPage(1);setShowCats(false);}}>
+                <span className="cat-item-icon">{c.icon}</span>{c.label}
+              </div>
+            ))}
+            <div className={`cat-item${catActive==="favoris"?" on":""}`} style={catActive==="favoris"?{borderColor:"#FF6B6B",background:"#FF6B6B"}:{}} onClick={()=>{setCat("favoris");setCurrentPage(1);setShowCats(false);}}>
+              <span className="cat-item-icon">❤️</span>Favoris
+            </div>
+          </div>
+        )}
 
         {/* FILTRES */}
         <div className="filter-bar" style={{marginTop:16}}>
