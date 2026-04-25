@@ -233,9 +233,17 @@ const styles = `
 
   /* MODAL */
   .moverlay { position:fixed; inset:0; background:rgba(10,36,99,.78); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px); }
-  .modal { background:white; border-radius:24px; max-width:520px; width:100%; overflow:hidden; box-shadow:0 32px 80px rgba(10,36,99,.35); animation:fadeUp .3s ease; max-height:90vh; overflow-y:auto; }
-  .mimg-wrap { height:230px; position:relative; overflow:hidden; background:linear-gradient(135deg,#EBF2FF,#D6E4FF); }
-  .mimg-real { width:100%; height:100%; object-fit:cover; display:block; }
+  .modal { background:white; border-radius:24px; max-width:520px; width:100%; overflow:hidden; box-shadow:0 32px 80px rgba(10,36,99,.35); animation:fadeUp .3s ease; max-height:90vh; overflow-y:auto; position:relative; z-index:201; }
+  .mimg-wrap { height:320px; position:relative; overflow:hidden; background:linear-gradient(135deg,#EBF2FF,#D6E4FF); cursor:zoom-in; }
+  .mimg-real { width:100%; height:100%; object-fit:cover; display:block; transition:transform .3s; }
+  .mimg-real:hover { transform:scale(1.03); }
+  .mnav-left { position:absolute; left:8px; top:50%; transform:translateY(-50%); z-index:4; }
+  .mnav-right { position:absolute; right:8px; top:50%; transform:translateY(-50%); z-index:4; }
+
+  /* PLEIN ÉCRAN IMAGE */
+  .fullscreen-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:9999; display:flex; align-items:center; justify-content:center; cursor:zoom-out; }
+  .fullscreen-img { max-width:100vw; max-height:100vh; object-fit:contain; }
+  .fullscreen-close { position:fixed; top:16px; right:20px; color:white; font-size:36px; cursor:pointer; background:none; border:none; font-weight:300; z-index:10000; }
   .mimg-emoji { height:230px; display:flex; align-items:center; justify-content:center; font-size:80px; }
   .mimg-nav { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 10px; }
   .mnav-btn { background:rgba(10,36,99,.5); color:white; border:none; border-radius:50%; width:34px; height:34px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -352,22 +360,24 @@ function CardImage({ annonce }) {
   );
 }
 
-function ModalImage({ annonce }) {
+function ModalImage({ annonce, onFullscreen }) {
   const [idx, setIdx] = useState(0);
   const photos = annonce.photos || [];
   if (!photos.length) return <div className="mimg-emoji">{annonce.emoji}</div>;
   return (
     <div className="mimg-wrap">
-      <img src={photos[idx]} alt="" className="mimg-real"/>
+      {/* Image cliquable pour agrandir */}
+      <img src={photos[idx]} alt="" className="mimg-real" onClick={() => onFullscreen(photos, idx)}/>
       <div className="mbadges">
         <span className="bcat">{categories.find(c=>c.id===annonce.categorie)?.label}</span>
         {annonce.urgent && <span className="burg">⚡ Urgent</span>}
       </div>
+      {/* Badge agrandir */}
+      <div style={{position:"absolute",bottom:10,right:10,background:"rgba(0,0,0,0.55)",color:"white",fontSize:11,padding:"4px 9px",borderRadius:6,pointerEvents:"none",zIndex:3}}>🔍 Agrandir</div>
+      {/* Boutons navigation — positionnés séparément */}
       {photos.length > 1 && <>
-        <div className="mimg-nav">
-          <button className="mnav-btn" onClick={e=>{e.stopPropagation();setIdx(i=>(i-1+photos.length)%photos.length)}}>‹</button>
-          <button className="mnav-btn" onClick={e=>{e.stopPropagation();setIdx(i=>(i+1)%photos.length)}}>›</button>
-        </div>
+        <button className="mnav-btn mnav-left" onClick={e=>{e.stopPropagation();setIdx(i=>(i-1+photos.length)%photos.length)}}>‹</button>
+        <button className="mnav-btn mnav-right" onClick={e=>{e.stopPropagation();setIdx(i=>(i+1)%photos.length)}}>›</button>
         <div className="mimg-dots">{photos.map((_,i)=><div key={i} className={`mdot${i===idx?" on":""}`}/>)}</div>
       </>}
     </div>
@@ -384,6 +394,7 @@ export default function YoMan() {
   const [searchInput, setSI]      = useState("");
   const [search, setSearch]       = useState("");
   const [selected, setSelected]   = useState(null);
+  const [fullscreen, setFullscreen] = useState(null); // {photos, idx}
   const [authErr, setAuthErr]     = useState("");
   const [postOk, setPostOk]       = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -852,10 +863,25 @@ export default function YoMan() {
         }
       </div>
 
+      {/* PLEIN ÉCRAN */}
+      {fullscreen && (
+        <div className="fullscreen-overlay" onClick={() => setFullscreen(null)}>
+          <button className="fullscreen-close" onClick={() => setFullscreen(null)}>✕</button>
+          <img src={fullscreen.photos[fullscreen.idx]} alt="" className="fullscreen-img" onClick={e=>e.stopPropagation()}/>
+          {fullscreen.photos.length > 1 && <>
+            <button onClick={e=>{e.stopPropagation();setFullscreen(f=>({...f,idx:(f.idx-1+f.photos.length)%f.photos.length}))}} style={{position:"fixed",left:16,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.2)",color:"white",border:"none",borderRadius:"50%",width:48,height:48,fontSize:26,cursor:"pointer",zIndex:10000}}>‹</button>
+            <button onClick={e=>{e.stopPropagation();setFullscreen(f=>({...f,idx:(f.idx+1)%f.photos.length}))}} style={{position:"fixed",right:16,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.2)",color:"white",border:"none",borderRadius:"50%",width:48,height:48,fontSize:26,cursor:"pointer",zIndex:10000}}>›</button>
+            <div style={{position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",display:"flex",gap:8,zIndex:10000}}>
+              {fullscreen.photos.map((_,i)=><div key={i} onClick={e=>{e.stopPropagation();setFullscreen(f=>({...f,idx:i}));}} style={{width:9,height:9,borderRadius:"50%",background:i===fullscreen.idx?"white":"rgba(255,255,255,0.4)",cursor:"pointer"}}/>)}
+            </div>
+          </>}
+        </div>
+      )}
+
       {selected && (
         <div className="moverlay" onClick={() => setSelected(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
-            <ModalImage annonce={selected}/>
+            <ModalImage annonce={selected} onFullscreen={(photos, idx) => setFullscreen({photos, idx})}/>
             <div className="mbody">
               <div className="mtitle">{selected.titre}</div>
               <div className="mprix">{selected.prix}</div>
