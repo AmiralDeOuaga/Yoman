@@ -509,6 +509,19 @@ export default function YoMan() {
 
   const logout = () => { signOut(auth); setPage("home"); setFavoris([]); };
 
+  const reportAd = async (a) => {
+    const raison = window.prompt("Pourquoi signalez-vous cette annonce ?\n\n1. Fausse annonce\n2. Prix abusif\n3. Contenu inapproprié\n4. Arnaque\n\nEcrivez votre raison :");
+    if (!raison) return;
+    try {
+      await addDoc(collection(db, "signalements"), {
+        annonceId: a.id, titre: a.titre,
+        signalePar: user.uid, raison,
+        createdAt: serverTimestamp()
+      });
+      alert("✅ Annonce signalée ! Notre équipe va examiner ça.");
+    } catch(e) { alert("Erreur : " + e.message); }
+  };
+
   const openAd = async (a) => {
     setSelected(a);
     // Incrémenter les vues
@@ -783,6 +796,7 @@ export default function YoMan() {
               <div className="mdesc">{selected.description}</div>
               <div className="macts">
                 <button className="mclose" onClick={() => setSelected(null)}>Fermer</button>
+                <button className="mclose" style={{color:"#DC2626",borderColor:"#FCA5A5"}} onClick={()=>reportAd(selected)}>🚩 Signaler</button>
                 <button className="mwa" style={{background:"#128C7E"}} onClick={()=>{
                   const txt = `🛍️ *${selected.titre}*\n💰 ${selected.prix}\n📍 ${selected.quartier}, ${selected.ville}\n\n${selected.description}\n\n👉 YoMan! : https://yoman-teal.vercel.app`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`,"_blank");
