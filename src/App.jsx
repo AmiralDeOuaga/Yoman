@@ -69,7 +69,34 @@ async function uploadToCloudinary(file) {
   throw new Error(data.error?.message || "Upload échoué");
 }
 
-// ── LOGO — Yo! dans un carré arrondi ──────────────────────────
+// ── BOTTOM NAV ────────────────────────────────────────────────
+const BottomNav = ({ page, setPage, favoris, isAdmin }) => (
+  <nav className="bottom-nav">
+    <button className={`bnav-item${page==="home"?" on":""}`} onClick={()=>setPage("home")} style={{position:"relative"}}>
+      <span className="bnav-icon">🏠</span>
+      <span className="bnav-label">Accueil</span>
+    </button>
+    <button className={`bnav-item${page==="search"?" on":""}`} onClick={()=>setPage("home")} style={{position:"relative"}}>
+      <span className="bnav-icon">🔍</span>
+      <span className="bnav-label">Chercher</span>
+    </button>
+    <button className={`bnav-item`} onClick={()=>setPage("post")} style={{position:"relative"}}>
+      <span className="bnav-icon" style={{background:"var(--blue)",borderRadius:"50%",width:42,height:42,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"white",marginTop:-10}}>+</span>
+      <span className="bnav-label">Publier</span>
+    </button>
+    <button className={`bnav-item${page==="home"&&false?" on":""}`} onClick={()=>setPage("home")} style={{position:"relative"}}>
+      <span className="bnav-icon">❤️</span>
+      {favoris.length > 0 && <span className="bnav-badge">{favoris.length}</span>}
+      <span className="bnav-label">Favoris</span>
+    </button>
+    <button className={`bnav-item${page==="profile"?" on":""}`} onClick={()=>setPage("profile")} style={{position:"relative"}}>
+      <span className="bnav-icon">👤</span>
+      <span className="bnav-label">Profil</span>
+    </button>
+  </nav>
+);
+
+// ── LOGO ──────────────────────────────────────────────────────
 const YoManLogo = ({ variant = "white", height = 48 }) => {
   const isWhite = variant === "white";
   const bgColor = isWhite ? "url(#logoGrad)" : "url(#logoGrad)";
@@ -110,7 +137,46 @@ const styles = `
     --muted:#6B80A8; --border:#D6E4FF;
   }
   body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); }
-  .app { min-height:100vh; }
+  .app { min-height:100vh; padding-bottom:70px; }
+  @media(min-width:768px) { .app { padding-bottom:0; } }
+
+  /* BOTTOM NAV MOBILE */
+  .bottom-nav { display:flex; position:fixed; bottom:0; left:0; right:0; background:white; border-top:2px solid var(--border); z-index:99; box-shadow:0 -4px 20px rgba(10,36,99,.1); }
+  @media(min-width:768px) { .bottom-nav { display:none; } }
+  .bnav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 4px; cursor:pointer; transition:all .2s; border:none; background:transparent; font-family:'Montserrat',sans-serif; color:var(--muted); gap:3px; }
+  .bnav-item.on { color:var(--blue); }
+  .bnav-icon { font-size:22px; line-height:1; }
+  .bnav-label { font-size:9px; font-weight:700; letter-spacing:0.3px; }
+  .bnav-badge { position:absolute; top:4px; right:calc(50% - 18px); background:#FF6B6B; color:white; font-size:9px; font-weight:800; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+
+  /* HERO AMÉLIORÉ */
+  .hero { background:linear-gradient(135deg,var(--dark) 0%,var(--blue) 100%); padding:40px 24px 36px; text-align:center; position:relative; overflow:hidden; }
+  .hero-blur1 { position:absolute; width:380px; height:380px; background:radial-gradient(circle,rgba(56,207,255,.15) 0%,transparent 70%); top:-110px; right:-90px; pointer-events:none; }
+  .hero-blur2 { position:absolute; width:260px; height:260px; background:radial-gradient(circle,rgba(255,217,61,.12) 0%,transparent 70%); bottom:-90px; left:-70px; pointer-events:none; }
+  .hero-logo { margin-bottom:16px; display:flex; justify-content:center; position:relative; z-index:1; }
+  .hero h1 { font-family:'Montserrat',sans-serif; font-size:clamp(20px,4vw,42px); font-weight:900; color:white; margin-bottom:8px; line-height:1.15; position:relative; z-index:1; }
+  .hero h1 em { color:var(--gold); font-style:normal; }
+  .hero p { color:rgba(255,255,255,.72); font-size:14px; margin-bottom:20px; max-width:460px; margin-left:auto; margin-right:auto; position:relative; z-index:1; }
+
+  /* BANNIÈRES CATÉGORIES ACCUEIL */
+  .cat-banners { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
+  @media(max-width:600px) { .cat-banners { grid-template-columns:repeat(2,1fr); } }
+  .cat-banner { border-radius:14px; padding:16px 12px; text-align:center; cursor:pointer; transition:all .2s; border:2px solid transparent; }
+  .cat-banner:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(23,86,200,.15); border-color:var(--blue); }
+  .cat-banner-icon { font-size:32px; margin-bottom:6px; }
+  .cat-banner-label { font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; color:var(--dark); }
+  .cat-banner-count { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* ANNONCES VEDETTES */
+  .vedettes-scroll { display:flex; gap:14px; overflow-x:auto; padding:4px 0 12px; scrollbar-width:none; }
+  .vedettes-scroll::-webkit-scrollbar { display:none; }
+  .vedette-card { min-width:220px; background:white; border-radius:14px; overflow:hidden; border:2px solid var(--gold); flex-shrink:0; cursor:pointer; transition:all .2s; }
+  .vedette-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(255,217,61,.3); }
+  .vedette-img { height:120px; background:linear-gradient(135deg,#EBF2FF,#D6E4FF); display:flex; align-items:center; justify-content:center; font-size:48px; position:relative; }
+  .vedette-badge { position:absolute; top:8px; left:8px; background:var(--gold); color:var(--dark); font-size:9px; font-weight:800; padding:3px 8px; border-radius:10px; font-family:'Montserrat',sans-serif; }
+  .vedette-body { padding:10px 12px; }
+  .vedette-title { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; color:var(--dark); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .vedette-prix { font-size:14px; font-weight:900; color:var(--blue); font-family:'Montserrat',sans-serif; }
 
   .hdr { background:linear-gradient(135deg,var(--dark),var(--blue)); padding:0 16px; position:sticky; top:0; z-index:100; box-shadow:0 4px 24px rgba(10,36,99,.28); }
   .hdr-in { max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; min-height:62px; padding:8px 0; flex-wrap:wrap; gap:6px; }
@@ -1012,17 +1078,51 @@ export default function YoMan() {
         <div className="hero-logo"><YoManLogo variant="white" height={64}/></div>
         <h1>Vente entre particuliers<br/><em>partout au Burkina !</em></h1>
         <p>Achète, vends, échange — gratuit, simple et en confiance</p>
-        <div className="sbar">
+        <div className="sbar" style={{position:"relative",zIndex:1}}>
           <input placeholder="Que cherchez-vous ?" value={searchInput} onChange={e=>setSI(e.target.value)} onKeyDown={e=>e.key==="Enter"&&setSearch(searchInput)}/>
           <button onClick={() => setSearch(searchInput)}>Rechercher</button>
         </div>
-        <div className="stats">
+        <div className="stats" style={{position:"relative",zIndex:1}}>
           <div className="stat"><div className="stn">{annonces.length}</div><div className="stl">Annonces</div></div>
           <div className="stat"><div className="stn">{villes.length}</div><div className="stl">Villes</div></div>
         </div>
       </section>
 
       <div className="sec">
+        {/* ANNONCES URGENTES / VEDETTES */}
+        {annonces.filter(a=>a.urgent).length > 0 && <>
+          <div className="stitle">⚡ Annonces urgentes</div>
+          <div className="vedettes-scroll">
+            {annonces.filter(a=>a.urgent).slice(0,10).map(a=>(
+              <div key={a.id} className="vedette-card" onClick={()=>openAd(a)}>
+                <div className="vedette-img">
+                  {a.photos?.[0]
+                    ? <img src={a.photos[0]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    : a.emoji
+                  }
+                  <span className="vedette-badge">⚡ Urgent</span>
+                </div>
+                <div className="vedette-body">
+                  <div className="vedette-title">{a.titre}</div>
+                  <div className="vedette-prix">{a.prix}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>}
+
+        {/* CATÉGORIES EN GRILLE */}
+        <div className="stitle">Catégories populaires</div>
+        <div className="cat-banners">
+          {categories.slice(0,6).map(c => (
+            <div key={c.id} className="cat-banner" style={{background: catActive===c.id ? "#EBF2FF" : "white", border: catActive===c.id ? "2px solid var(--blue)" : "2px solid var(--border)"}}
+              onClick={()=>{setCat(c.id);setCurrentPage(1);}}>
+              <div className="cat-banner-icon">{c.icon}</div>
+              <div className="cat-banner-label">{c.label}</div>
+              <div className="cat-banner-count">{annonces.filter(a=>a.categorie===c.id).length} annonces</div>
+            </div>
+          ))}
+        </div>
         <div className="stitle">Catégories</div>
 
         {/* Menu déroulant catégories */}
@@ -1208,6 +1308,7 @@ export default function YoMan() {
           </div>
         </div>
       )}
+      <BottomNav page={page} setPage={setPage} favoris={favoris} isAdmin={isAdmin}/>
       <Footer/>
     </div>
   </>);
