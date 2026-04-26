@@ -1367,7 +1367,7 @@ export default function YoMan() {
                     <div className="cvend"><strong>{a.vendeur}</strong>{formatDate(a.createdAt)}</div>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <span style={{fontSize:11,color:"var(--muted)"}}>👁️ {a.vues||0}</span>
-                      <a className="wabtn" href={waLink(a.whatsapp, a.titre)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}>💬 WhatsApp</a>
+                      <button className="wabtn" style={{background:"var(--blue)"}} onClick={e=>{e.stopPropagation();openAd(a);}}>Voir</button>
                     </div>
                   </div>
                 </div>
