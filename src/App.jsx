@@ -15,6 +15,10 @@ import {
 } from "firebase/auth";
 
 // ─────────────────────────────────────────────────────────────
+const ADMIN_UID = "VE183TvlMgNxmiO9kJjzX6IlzNg1";
+// ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
 const CLOUDINARY_CLOUD_NAME    = "dw4clwa2b";
 const CLOUDINARY_UPLOAD_PRESET = "yo man";
 // ─────────────────────────────────────────────────────────────
@@ -300,6 +304,32 @@ const styles = `
   .empty { text-align:center; padding:52px 20px; color:var(--muted); }
   .eico { font-size:44px; margin-bottom:12px; }
   .emsg { font-size:15px; font-weight:600; }
+
+  /* ADMIN */
+  .admin-screen { max-width:900px; margin:36px auto; padding:0 20px 56px; }
+  .admin-header { background:linear-gradient(135deg,#7C3AED,#4F46E5); border-radius:20px; padding:24px 28px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; }
+  .admin-title { font-family:'Montserrat',sans-serif; font-size:22px; font-weight:900; color:white; }
+  .admin-subtitle { font-size:13px; color:rgba(255,255,255,0.7); margin-top:4px; }
+  .admin-stats { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .admin-stat { background:white; border-radius:14px; padding:18px 22px; border:2px solid var(--border); flex:1; min-width:120px; text-align:center; }
+  .admin-stat-n { font-size:28px; font-weight:900; font-family:'Montserrat',sans-serif; color:var(--blue); }
+  .admin-stat-l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+  .admin-section { background:white; border-radius:18px; border:2px solid var(--border); overflow:hidden; margin-bottom:20px; }
+  .admin-section-title { padding:16px 20px; font-family:'Montserrat',sans-serif; font-weight:800; font-size:15px; color:var(--dark); border-bottom:2px solid var(--bg); display:flex; align-items:center; gap:8px; }
+  .admin-row { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--bg); gap:12px; }
+  .admin-row:last-child { border-bottom:none; }
+  .admin-row-info { flex:1; }
+  .admin-row-title { font-weight:700; font-size:14px; color:var(--dark); margin-bottom:2px; }
+  .admin-row-sub { font-size:12px; color:var(--muted); }
+  .admin-row-actions { display:flex; gap:8px; flex-shrink:0; }
+  .btn-danger { background:#FEF2F2; color:#DC2626; border:1.5px solid #FCA5A5; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; }
+  .btn-danger:hover { background:#DC2626; color:white; }
+  .btn-warn { background:#FFFBEB; color:#D97706; border:1.5px solid #FCD34D; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; transition:all .2s; }
+  .btn-warn:hover { background:#D97706; color:white; }
+  .badge-signal { background:#FEF2F2; color:#DC2626; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; font-family:'Montserrat',sans-serif; }
+  .admin-tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .admin-tab { padding:9px 18px; border-radius:10px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
+  .admin-tab.on { background:#7C3AED; color:white; border-color:#7C3AED; }
   .footer { background:var(--dark); color:rgba(255,255,255,.4); text-align:center; padding:20px; font-size:12px; }
   .footer strong { color:var(--gold); }
 `;
@@ -410,7 +440,11 @@ export default function YoMan() {
   const [pPrix,setPPrix]=useState("");   const [pVille,setPVille]=useState("Ouagadougou");
   const [pQ,setPQ]=useState("");         const [pDesc,setPDesc]=useState("");
   const [pUrg,setPUrg]=useState(false);  const [pPhotos,setPPhotos]=useState([]);
-  const [editAd, setEditAd] = useState(null); // annonce en cours d'édition
+  const [editAd, setEditAd] = useState(null);
+  const [adminTab, setAdminTab] = useState("annonces");
+  const [signalements, setSignalements] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const isAdmin = user?.uid === ADMIN_UID; // annonce en cours d'édition
 
   // Filtres
   const [filtreVille, setFiltreVille] = useState("toutes");
@@ -459,6 +493,20 @@ export default function YoMan() {
     };
     load();
   }, [user]);
+
+  // Load admin data
+  useEffect(() => {
+    if (!isAdmin) return;
+    const loadAdmin = async () => {
+      try {
+        const sigSnap = await getDocs(query(collection(db, "signalements"), orderBy("createdAt", "desc")));
+        setSignalements(sigSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const usersSnap = await getDocs(collection(db, "users"));
+        setAllUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch(e) { console.error(e); }
+    };
+    loadAdmin();
+  }, [isAdmin]);
 
   const loginGoogle = async () => {
     setAuthErr(""); setSubmitting(true);
@@ -584,6 +632,21 @@ export default function YoMan() {
     setSubmitting(false);
   };
 
+  const adminDeleteAd = async (id) => {
+    if (!window.confirm("Supprimer cette annonce ?")) return;
+    try {
+      await deleteDoc(doc(db, "annonces", id));
+      setAnnonces(p => p.filter(a => a.id !== id));
+    } catch(e) { alert("Erreur : " + e.message); }
+  };
+
+  const adminDeleteSignalement = async (id) => {
+    try {
+      await deleteDoc(doc(db, "signalements", id));
+      setSignalements(p => p.filter(s => s.id !== id));
+    } catch(e) { alert("Erreur : " + e.message); }
+  };
+
   const logout = () => { signOut(auth); setPage("home"); setFavoris([]); };
 
   const reportAd = async (a) => {
@@ -654,6 +717,7 @@ export default function YoMan() {
       <div style={{cursor:"pointer"}} onClick={() => setPage("home")}><YoManLogo variant="white" height={40}/></div>
       <div className="hdr-r">
         {user && <span className="huser">Salut, <strong>{user.displayName?.split(" ")[0]}</strong> 👋</span>}
+        {isAdmin && <button className="btn-o" style={{borderColor:"#7C3AED",color:"#7C3AED"}} onClick={()=>setPage("admin")}>🛡️ Admin</button>}
         <button className="btn-o" onClick={() => setPage("profile")}>👤</button>
         {showPost && <button className="btn-p" onClick={() => setPage("post")}>+ Annonce</button>}
         <button className="btn-o" onClick={logout} title="Déconnexion">⏻</button>
@@ -764,6 +828,101 @@ export default function YoMan() {
             ))}</div>
         }
       </div><Footer/>
+    </div>
+  </>);
+
+  // ADMIN
+  if (page === "admin" && isAdmin) return (<><style>{styles}</style>
+    <div className="app"><Header/>
+      <div className="admin-screen">
+        <div className="admin-header">
+          <div>
+            <div className="admin-title">🛡️ Panel Admin — YoMan!</div>
+            <div className="admin-subtitle">Gestion de la marketplace</div>
+          </div>
+          <button className="btn-o" onClick={()=>setPage("home")}>← Retour</button>
+        </div>
+
+        {/* Stats */}
+        <div className="admin-stats">
+          <div className="admin-stat"><div className="admin-stat-n">{annonces.length}</div><div className="admin-stat-l">Annonces</div></div>
+          <div className="admin-stat"><div className="admin-stat-n">{allUsers.length}</div><div className="admin-stat-l">Membres</div></div>
+          <div className="admin-stat"><div className="admin-stat-n">{signalements.length}</div><div className="admin-stat-l" style={{color:"#DC2626"}}>Signalements</div></div>
+          <div className="admin-stat"><div className="admin-stat-n">{annonces.filter(a=>a.urgent).length}</div><div className="admin-stat-l">Urgentes</div></div>
+        </div>
+
+        {/* Tabs */}
+        <div className="admin-tabs">
+          <button className={`admin-tab${adminTab==="annonces"?" on":""}`} onClick={()=>setAdminTab("annonces")}>📋 Annonces ({annonces.length})</button>
+          <button className={`admin-tab${adminTab==="signalements"?" on":""}`} onClick={()=>setAdminTab("signalements")}>🚩 Signalements ({signalements.length})</button>
+          <button className={`admin-tab${adminTab==="users"?" on":""}`} onClick={()=>setAdminTab("users")}>👥 Membres ({allUsers.length})</button>
+        </div>
+
+        {/* Annonces */}
+        {adminTab==="annonces" && (
+          <div className="admin-section">
+            <div className="admin-section-title">📋 Toutes les annonces</div>
+            {annonces.length===0
+              ? <div className="empty"><div className="eico">📭</div><div className="emsg">Aucune annonce</div></div>
+              : annonces.map(a=>(
+                <div key={a.id} className="admin-row">
+                  <div className="admin-row-info">
+                    <div className="admin-row-title">{a.urgent && "⚡ "}{a.titre}</div>
+                    <div className="admin-row-sub">{categories.find(c=>c.id===a.categorie)?.icon} {categories.find(c=>c.id===a.categorie)?.label} · 📍 {a.ville} · 👤 {a.vendeur} · 👁️ {a.vues||0} vues</div>
+                    <div className="admin-row-sub" style={{color:"var(--blue)",fontWeight:700}}>{a.prix}</div>
+                  </div>
+                  <div className="admin-row-actions">
+                    <button className="btn-danger" onClick={()=>adminDeleteAd(a.id)}>🗑️ Supprimer</button>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Signalements */}
+        {adminTab==="signalements" && (
+          <div className="admin-section">
+            <div className="admin-section-title">🚩 Signalements à traiter</div>
+            {signalements.length===0
+              ? <div className="empty"><div className="eico">✅</div><div className="emsg">Aucun signalement !</div></div>
+              : signalements.map(s=>(
+                <div key={s.id} className="admin-row">
+                  <div className="admin-row-info">
+                    <div className="admin-row-title">🚩 {s.titre}</div>
+                    <div className="admin-row-sub">Raison : {s.raison}</div>
+                    <div className="admin-row-sub">ID annonce : {s.annonceId}</div>
+                  </div>
+                  <div className="admin-row-actions">
+                    <button className="btn-danger" onClick={()=>adminDeleteAd(s.annonceId)}>🗑️ Supprimer l'annonce</button>
+                    <button className="btn-warn" onClick={()=>adminDeleteSignalement(s.id)}>✓ Ignorer</button>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Membres */}
+        {adminTab==="users" && (
+          <div className="admin-section">
+            <div className="admin-section-title">👥 Membres inscrits</div>
+            {allUsers.length===0
+              ? <div className="empty"><div className="eico">👥</div><div className="emsg">Aucun membre</div></div>
+              : allUsers.map(u=>(
+                <div key={u.id} className="admin-row">
+                  <div className="admin-row-info">
+                    <div className="admin-row-title">{u.nom || "Sans nom"}</div>
+                    <div className="admin-row-sub">📧 {u.email} · 📞 {u.tel||"—"} · 💬 {u.whatsapp||"—"}</div>
+                    <div className="admin-row-sub">Annonces : {annonces.filter(a=>a.userId===u.uid).length}</div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+      <Footer/>
     </div>
   </>);
 
