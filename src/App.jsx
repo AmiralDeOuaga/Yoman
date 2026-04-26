@@ -531,6 +531,23 @@ export default function YoMan() {
 
   const postAd = async () => {
     if (!pTitre||!pPrix||!pQ||!pDesc) return;
+
+    // Vérification limite urgent : 1 par semaine
+    if (pUrg) {
+      const uneSemaine = new Date();
+      uneSemaine.setDate(uneSemaine.getDate() - 7);
+      const annoncesUrgentes = annonces.filter(a =>
+        a.userId === user.uid &&
+        a.urgent === true &&
+        a.createdAt?.toDate &&
+        a.createdAt.toDate() > uneSemaine
+      );
+      if (annoncesUrgentes.length >= 1 && !editAd) {
+        alert("⚠️ Vous avez déjà utilisé votre annonce urgente gratuite cette semaine. Revenez dans 7 jours !");
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       if (editAd) {
@@ -702,7 +719,13 @@ export default function YoMan() {
           </div>
           <div className="fg"><label className="fl">Description *</label><textarea className="fta" placeholder="Décrivez votre article…" value={pDesc} onChange={e=>setPDesc(e.target.value)}/></div>
           <PhotoUploader photos={pPhotos} setPhotos={setPPhotos}/>
-          <div className="fg"><label className="utog"><div className={`tog${pUrg?" on":""}`} onClick={()=>setPUrg(p=>!p)}/><span style={{fontSize:13,color:"var(--dark)",fontWeight:700}}>⚡ Marquer comme urgent</span></label></div>
+          <div className="fg">
+            <label className="utog">
+              <div className={`tog${pUrg?" on":""}`} onClick={()=>setPUrg(p=>!p)}/>
+              <span style={{fontSize:13,color:"var(--dark)",fontWeight:700}}>⚡ Marquer comme urgent</span>
+            </label>
+            <div className="fhint">1 annonce urgente gratuite par semaine</div>
+          </div>
           <button className="fb" onClick={postAd} disabled={submitting}>{submitting ? "Enregistrement…" : editAd ? "Enregistrer les modifications →" : "Publier l'annonce →"}</button>
         </div>
       </div><Footer/>
