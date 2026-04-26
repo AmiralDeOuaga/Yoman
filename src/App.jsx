@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db, auth } from "./firebase";
 import {
-  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, where
+  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, where, onSnapshot
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
@@ -70,21 +70,22 @@ async function uploadToCloudinary(file) {
 }
 
 // ── BOTTOM NAV ────────────────────────────────────────────────
-const BottomNav = ({ page, setPage, favoris, isAdmin }) => (
+const BottomNav = ({ page, setPage, favoris, isAdmin, unread=0 }) => (
   <nav className="bottom-nav">
     <button className={`bnav-item${page==="home"?" on":""}`} onClick={()=>setPage("home")} style={{position:"relative"}}>
       <span className="bnav-icon">🏠</span>
       <span className="bnav-label">Accueil</span>
     </button>
-    <button className={`bnav-item${page==="search"?" on":""}`} onClick={()=>setPage("home")} style={{position:"relative"}}>
-      <span className="bnav-icon">🔍</span>
-      <span className="bnav-label">Chercher</span>
+    <button className={`bnav-item${page==="messages"?" on":""}`} onClick={()=>setPage("messages")} style={{position:"relative"}}>
+      <span className="bnav-icon">💬</span>
+      {unread > 0 && <span className="bnav-badge">{unread}</span>}
+      <span className="bnav-label">Messages</span>
     </button>
-    <button className={`bnav-item`} onClick={()=>setPage("post")} style={{position:"relative"}}>
+    <button className="bnav-item" onClick={()=>setPage("post")} style={{position:"relative"}}>
       <span className="bnav-icon" style={{background:"var(--blue)",borderRadius:"50%",width:42,height:42,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:"white",marginTop:-10}}>+</span>
       <span className="bnav-label">Publier</span>
     </button>
-    <button className={`bnav-item${page==="home"&&false?" on":""}`} onClick={()=>setPage("home")} style={{position:"relative"}}>
+    <button className={`bnav-item`} onClick={()=>{setPage("home");}} style={{position:"relative"}}>
       <span className="bnav-icon">❤️</span>
       {favoris.length > 0 && <span className="bnav-badge">{favoris.length}</span>}
       <span className="bnav-label">Favoris</span>
@@ -148,6 +149,38 @@ const styles = `
   .bnav-icon { font-size:22px; line-height:1; }
   .bnav-label { font-size:9px; font-weight:700; letter-spacing:0.3px; }
   .bnav-badge { position:absolute; top:4px; right:calc(50% - 18px); background:#FF6B6B; color:white; font-size:9px; font-weight:800; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+
+  /* MESSAGERIE */
+  .chat-screen { max-width:700px; margin:0 auto; padding:0; height:calc(100vh - 130px); display:flex; flex-direction:column; }
+  .chat-list { flex:1; overflow-y:auto; padding:0 20px; }
+  .conv-item { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); cursor:pointer; transition:background .2s; }
+  .conv-item:hover { background:var(--bg); margin:0 -20px; padding:14px 20px; }
+  .conv-avatar { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--dark)); display:flex; align-items:center; justify-content:center; font-size:20px; color:white; font-weight:700; font-family:'Montserrat',sans-serif; flex-shrink:0; }
+  .conv-info { flex:1; min-width:0; }
+  .conv-name { font-weight:700; font-size:14px; color:var(--dark); }
+  .conv-last { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .conv-annonce { font-size:11px; color:var(--blue); font-weight:600; margin-top:2px; }
+  .conv-unread { background:var(--blue); color:white; font-size:10px; font-weight:800; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  /* CHAT ROOM */
+  .chatroom { display:flex; flex-direction:column; height:calc(100vh - 130px); max-width:700px; margin:0 auto; }
+  .chatroom-header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:2px solid var(--border); background:white; }
+  .chatroom-back { background:none; border:none; font-size:20px; cursor:pointer; color:var(--blue); }
+  .chatroom-info h3 { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:800; color:var(--dark); }
+  .chatroom-info p { font-size:12px; color:var(--muted); }
+  .chatroom-messages { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; background:var(--bg); }
+  .msg { display:flex; flex-direction:column; max-width:75%; }
+  .msg.mine { align-self:flex-end; align-items:flex-end; }
+  .msg.theirs { align-self:flex-start; align-items:flex-start; }
+  .msg-bubble { padding:10px 14px; border-radius:16px; font-size:14px; line-height:1.5; }
+  .msg.mine .msg-bubble { background:var(--blue); color:white; border-bottom-right-radius:4px; }
+  .msg.theirs .msg-bubble { background:white; color:var(--text); border:1.5px solid var(--border); border-bottom-left-radius:4px; }
+  .msg-time { font-size:10px; color:var(--muted); margin-top:3px; }
+  .chatroom-input { display:flex; gap:10px; padding:12px 16px; background:white; border-top:2px solid var(--border); }
+  .chatroom-input input { flex:1; padding:11px 14px; border:2px solid var(--border); border-radius:24px; font-size:14px; font-family:'Nunito',sans-serif; outline:none; }
+  .chatroom-input input:focus { border-color:var(--blue); }
+  .send-btn { background:var(--blue); color:white; border:none; border-radius:50%; width:42px; height:42px; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .2s; }
+  .send-btn:hover { background:var(--dark); }
 
   /* HERO AMÉLIORÉ */
   .hero { background:linear-gradient(135deg,var(--dark) 0%,var(--blue) 100%); padding:40px 24px 36px; text-align:center; position:relative; overflow:hidden; }
@@ -538,7 +571,15 @@ export default function YoMan() {
   const [ratings, setRatings] = useState([]);
   const [myRating, setMyRating] = useState(0);
   const [myComment, setMyComment] = useState("");
-  const [ratingTarget, setRatingTarget] = useState(null); // userId du vendeur
+  const [ratingTarget, setRatingTarget] = useState(null);
+
+  // Messagerie
+  const [conversations, setConversations] = useState([]);
+  const [activeConv, setActiveConv] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useRef(null); // userId du vendeur
   const isAdmin = user?.uid === ADMIN_UID; // annonce en cours d'édition
 
   // Filtres
@@ -727,7 +768,68 @@ export default function YoMan() {
     setSubmitting(false);
   };
 
-  // Load ratings when a seller profile is opened
+  // Charger les conversations
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "conversations"), where("participants", "array-contains", user.uid), orderBy("lastMessageAt", "desc"));
+    const unsub = onSnapshot(q, snap => {
+      const convs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setConversations(convs);
+      setUnreadCount(convs.filter(c => c.lastSenderId !== user.uid && !c[`read_${user.uid}`]).length);
+    });
+    return unsub;
+  }, [user]);
+
+  // Charger les messages d'une conversation
+  useEffect(() => {
+    if (!activeConv) return;
+    const q = query(collection(db, "conversations", activeConv.id, "messages"), orderBy("createdAt", "asc"));
+    const unsub = onSnapshot(q, snap => {
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    });
+    // Marquer comme lu
+    updateDoc(doc(db, "conversations", activeConv.id), { [`read_${user.uid}`]: true });
+    return unsub;
+  }, [activeConv]);
+
+  const startConversation = async (annonce) => {
+    // Cherche une conversation existante
+    const convId = [user.uid, annonce.userId].sort().join("_") + "_" + annonce.id;
+    const convRef = doc(db, "conversations", convId);
+    const convSnap = await getDoc(convRef);
+    if (!convSnap.exists()) {
+      await setDoc(convRef, {
+        participants: [user.uid, annonce.userId],
+        buyerId: user.uid, buyerName: user.displayName,
+        sellerId: annonce.userId, sellerName: annonce.vendeur,
+        annonceId: annonce.id, annonceTitre: annonce.titre,
+        lastMessage: "", lastMessageAt: serverTimestamp(),
+        lastSenderId: "", [`read_${user.uid}`]: true, [`read_${annonce.userId}`]: false,
+      });
+    }
+    setActiveConv({ id: convId, annonceTitre: annonce.titre, buyerName: user.displayName, sellerName: annonce.vendeur, sellerId: annonce.userId, buyerId: user.uid });
+    setSelected(null);
+    setPage("messages");
+  };
+
+  const sendMessage = async () => {
+    if (!newMsg.trim() || !activeConv) return;
+    const txt = newMsg.trim();
+    setNewMsg("");
+    try {
+      await addDoc(collection(db, "conversations", activeConv.id, "messages"), {
+        text: txt, senderId: user.uid, senderName: user.displayName, createdAt: serverTimestamp()
+      });
+      const otherUid = activeConv.sellerId === user.uid ? activeConv.buyerId : activeConv.sellerId;
+      await updateDoc(doc(db, "conversations", activeConv.id), {
+        lastMessage: txt, lastMessageAt: serverTimestamp(),
+        lastSenderId: user.uid, [`read_${user.uid}`]: true, [`read_${otherUid}`]: false,
+      });
+    } catch(e) { console.error(e); }
+  };
+
+  const getOtherName = (conv) => conv.sellerId === user.uid ? conv.buyerName : conv.sellerName;
   const loadRatings = async (sellerId) => {
     try {
       const q = query(collection(db, "ratings"), where("sellerId", "==", sellerId), orderBy("createdAt", "desc"));
@@ -848,6 +950,9 @@ export default function YoMan() {
       <div className="hdr-r">
         {user && <span className="huser">Salut, <strong>{user.displayName?.split(" ")[0]}</strong> 👋</span>}
         {isAdmin && <button className="btn-o" style={{borderColor:"#7C3AED",color:"#7C3AED"}} onClick={()=>setPage("admin")}>🛡️ Admin</button>}
+        <button className="btn-o" style={{position:"relative"}} onClick={() => setPage("messages")}>
+          💬{unreadCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#FF6B6B",color:"white",fontSize:9,fontWeight:800,width:16,height:16,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadCount}</span>}
+        </button>
         <button className="btn-o" onClick={() => setPage("profile")}>👤</button>
         {showPost && <button className="btn-p" onClick={() => setPage("post")}>+ Annonce</button>}
         <button className="btn-o" onClick={logout} title="Déconnexion">⏻</button>
@@ -1066,6 +1171,64 @@ export default function YoMan() {
           </div>
         )}
       </div>
+      <Footer/>
+    </div>
+  </>);
+
+  // MESSAGES
+  if (page === "messages") return (<><style>{styles}</style>
+    <div className="app"><Header/>
+      {!activeConv ? (
+        // Liste des conversations
+        <div className="admin-screen">
+          <div className="stitle" style={{marginTop:0}}>💬 Mes messages</div>
+          {conversations.length === 0
+            ? <div className="empty"><div className="eico">💬</div><div className="emsg">Aucune conversation</div></div>
+            : <div style={{background:"white",borderRadius:18,border:"2px solid var(--border)",overflow:"hidden"}}>
+                {conversations.map(conv => (
+                  <div key={conv.id} className="conv-item" onClick={()=>setActiveConv(conv)}>
+                    <div className="conv-avatar">{getOtherName(conv)?.[0]||"?"}</div>
+                    <div className="conv-info">
+                      <div className="conv-name">{getOtherName(conv)}</div>
+                      <div className="conv-annonce">📦 {conv.annonceTitre}</div>
+                      <div className="conv-last">{conv.lastMessage || "Démarrer la conversation"}</div>
+                    </div>
+                    {conv.lastSenderId !== user.uid && !conv[`read_${user.uid}`] && (
+                      <div className="conv-unread">!</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      ) : (
+        // Chat room
+        <div className="chatroom">
+          <div className="chatroom-header">
+            <button className="chatroom-back" onClick={()=>setActiveConv(null)}>←</button>
+            <div className="conv-avatar" style={{width:38,height:38,fontSize:16}}>{getOtherName(activeConv)?.[0]||"?"}</div>
+            <div className="chatroom-info">
+              <h3>{getOtherName(activeConv)}</h3>
+              <p>📦 {activeConv.annonceTitre}</p>
+            </div>
+          </div>
+          <div className="chatroom-messages">
+            {messages.length === 0 && <div className="empty"><div className="emsg">Démarrez la conversation !</div></div>}
+            {messages.map(m => (
+              <div key={m.id} className={`msg ${m.senderId===user.uid?"mine":"theirs"}`}>
+                <div className="msg-bubble">{m.text}</div>
+                <div className="msg-time">{m.createdAt?.toDate ? new Date(m.createdAt.toDate()).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : ""}</div>
+              </div>
+            ))}
+            <div ref={messagesEndRef}/>
+          </div>
+          <div className="chatroom-input">
+            <input placeholder="Votre message..." value={newMsg} onChange={e=>setNewMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMessage()}/>
+            <button className="send-btn" onClick={sendMessage}>➤</button>
+          </div>
+        </div>
+      )}
+      <BottomNav page={page} setPage={setPage} favoris={favoris} isAdmin={isAdmin} unread={unreadCount}/>
       <Footer/>
     </div>
   </>);
@@ -1292,23 +1455,22 @@ export default function YoMan() {
               <div className="macts">
                 <button className="mclose" onClick={() => setSelected(null)}>Fermer</button>
                 <button className="mclose" style={{color:"#DC2626",borderColor:"#FCA5A5"}} onClick={()=>reportAd(selected)}>🚩 Signaler</button>
-                <button className="mwa" style={{background:"#128C7E"}} onClick={()=>{
-                  const txt = `🛍️ *${selected.titre}*\n💰 ${selected.prix}\n📍 ${selected.quartier}, ${selected.ville}\n\n${selected.description}\n\n👉 YoMan! : https://yoman-teal.vercel.app`;
+                <button className="mwa" style={{background:"var(--blue)"}} onClick={()=>startConversation(selected)}>
+                  💬 Contacter le vendeur
+                </button>
+                <button className="mwa" style={{background:"#128C7E",flex:1}} onClick={()=>{
+                  const txt = `🛍️ *${selected.titre}*\n💰 ${selected.prix}\n📍 ${selected.quartier}, ${selected.ville}\n\n${selected.description}\n\n👉 YoMan! : https://yomanbf.com`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`,"_blank");
                 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
                   Partager
                 </button>
-                <a className="mwa" href={waLink(selected.whatsapp, selected.titre)} target="_blank" rel="noopener noreferrer">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.562 4.14 1.541 5.873L0 24l6.336-1.521A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.796 9.796 0 01-5.031-1.388l-.361-.214-3.736.897.939-3.618-.235-.374A9.76 9.76 0 012.182 12C2.182 6.575 6.575 2.182 12 2.182S21.818 6.575 21.818 12 17.425 21.818 12 21.818z"/></svg>
-                  Contacter
-                </a>
               </div>
             </div>
           </div>
         </div>
       )}
-      <BottomNav page={page} setPage={setPage} favoris={favoris} isAdmin={isAdmin}/>
+      <BottomNav page={page} setPage={setPage} favoris={favoris} isAdmin={isAdmin} unread={unreadCount}/>
       <Footer/>
     </div>
   </>);
