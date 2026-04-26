@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db, auth } from "./firebase";
 import {
-  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc
+  collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, where
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
@@ -330,6 +330,31 @@ const styles = `
   .admin-tabs { display:flex; gap:8px; margin-bottom:20px; }
   .admin-tab { padding:9px 18px; border-radius:10px; border:2px solid var(--border); background:white; font-size:13px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; color:var(--muted); transition:all .2s; }
   .admin-tab.on { background:#7C3AED; color:white; border-color:#7C3AED; }
+
+  /* NOTATION */
+  .stars { display:flex; gap:4px; }
+  .star { font-size:22px; cursor:pointer; transition:transform .15s; line-height:1; }
+  .star:hover { transform:scale(1.2); }
+  .rating-box { background:var(--bg); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .rating-title { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:700; color:var(--dark); margin-bottom:10px; }
+  .rating-avg { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .rating-avg-n { font-size:28px; font-weight:900; color:var(--gold); font-family:'Montserrat',sans-serif; }
+  .rating-count { font-size:12px; color:var(--muted); }
+  .rating-comment { width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:10px; font-size:13px; font-family:'Nunito',sans-serif; outline:none; resize:none; min-height:70px; background:white; margin-top:8px; }
+  .rating-comment:focus { border-color:var(--blue); }
+  .review-item { padding:12px 0; border-bottom:1px solid var(--border); }
+  .review-item:last-child { border-bottom:none; }
+  .review-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  .review-name { font-size:13px; font-weight:700; color:var(--dark); }
+  .review-date { font-size:11px; color:var(--muted); }
+  .review-text { font-size:13px; color:#4A5568; line-height:1.5; margin-top:4px; }
+
+  /* STATS VENDEUR */
+  .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+  @media(max-width:480px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
+  .stat-card { background:white; border-radius:14px; border:2px solid var(--border); padding:16px; text-align:center; }
+  .stat-card-n { font-size:26px; font-weight:900; font-family:'Montserrat',sans-serif; color:var(--blue); }
+  .stat-card-l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
   .footer { background:var(--dark); color:rgba(255,255,255,.4); text-align:center; padding:20px; font-size:12px; }
   .footer strong { color:var(--gold); }
 `;
@@ -444,6 +469,10 @@ export default function YoMan() {
   const [adminTab, setAdminTab] = useState("annonces");
   const [signalements, setSignalements] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [ratings, setRatings] = useState([]);
+  const [myRating, setMyRating] = useState(0);
+  const [myComment, setMyComment] = useState("");
+  const [ratingTarget, setRatingTarget] = useState(null); // userId du vendeur
   const isAdmin = user?.uid === ADMIN_UID; // annonce en cours d'édition
 
   // Filtres
@@ -632,6 +661,41 @@ export default function YoMan() {
     setSubmitting(false);
   };
 
+  // Load ratings when a seller profile is opened
+  const loadRatings = async (sellerId) => {
+    try {
+      const q = query(collection(db, "ratings"), where("sellerId", "==", sellerId), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      setRatings(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setRatingTarget(sellerId);
+      setMyRating(0);
+      setMyComment("");
+    } catch(e) { console.error(e); }
+  };
+
+  const submitRating = async (sellerId) => {
+    if (!myRating) { alert("Veuillez choisir une note !"); return; }
+    if (sellerId === user.uid) { alert("Vous ne pouvez pas vous noter vous-même !"); return; }
+    try {
+      const existing = ratings.find(r => r.buyerId === user.uid);
+      if (existing) {
+        await updateDoc(doc(db, "ratings", existing.id), { note: myRating, commentaire: myComment, createdAt: serverTimestamp() });
+        setRatings(p => p.map(r => r.id === existing.id ? { ...r, note: myRating, commentaire: myComment } : r));
+      } else {
+        const newR = { sellerId, buyerId: user.uid, buyerName: user.displayName, note: myRating, commentaire: myComment, createdAt: serverTimestamp() };
+        const ref = await addDoc(collection(db, "ratings"), newR);
+        setRatings(p => [{ id: ref.id, ...newR }, ...p]);
+      }
+      setMyRating(0); setMyComment("");
+      alert("✅ Merci pour votre avis !");
+    } catch(e) { alert("Erreur : " + e.message); }
+  };
+
+  const avgRating = (rList) => {
+    if (!rList.length) return 0;
+    return (rList.reduce((s, r) => s + r.note, 0) / rList.length).toFixed(1);
+  };
+
   const adminDeleteAd = async (id) => {
     if (!window.confirm("Supprimer cette annonce ?")) return;
     try {
@@ -664,7 +728,7 @@ export default function YoMan() {
 
   const openAd = async (a) => {
     setSelected(a);
-    // Incrémenter les vues
+    loadRatings(a.userId);
     try {
       const ref = doc(db, "annonces", a.id);
       await updateDoc(ref, { vues: (a.vues || 0) + 1 });
@@ -806,8 +870,22 @@ export default function YoMan() {
           <div className="pinfo">
             <h2>{user.displayName}</h2>
             <p>📧 {user.email}</p>
-            <div className="pstats"><div><div className="psn">{myAds.length}</div><div className="psl">Annonces</div></div></div>
+            <div className="pstats">
+              <div><div className="psn">{myAds.length}</div><div className="psl">Annonces</div></div>
+              <div><div className="psn">{myAds.reduce((s,a)=>s+(a.vues||0),0)}</div><div className="psl">Vues totales</div></div>
+              <div><div className="psn">{myAds.filter(a=>a.urgent).length}</div><div className="psl">Urgentes</div></div>
+            </div>
           </div>
+        </div>
+
+        {/* Stats détaillées */}
+        <div className="stats-grid">
+          <div className="stat-card"><div className="stat-card-n">{myAds.length}</div><div className="stat-card-l">📋 Annonces</div></div>
+          <div className="stat-card"><div className="stat-card-n">{myAds.reduce((s,a)=>s+(a.vues||0),0)}</div><div className="stat-card-l">👁️ Vues</div></div>
+          <div className="stat-card"><div className="stat-card-n">{myAds.filter(a=>a.categorie==="immobilier").length}</div><div className="stat-card-l">🏠 Immo</div></div>
+          <div className="stat-card"><div className="stat-card-n">{myAds.filter(a=>a.categorie==="vehicules").length}</div><div className="stat-card-l">🚗 Véhicules</div></div>
+          <div className="stat-card"><div className="stat-card-n">{myAds.filter(a=>a.categorie==="electronique").length}</div><div className="stat-card-l">📱 Électro</div></div>
+          <div className="stat-card"><div className="stat-card-n">{myAds.filter(a=>a.urgent).length}</div><div className="stat-card-l">⚡ Urgentes</div></div>
         </div>
         <div className="stitle">Mes annonces</div>
         {myAds.length === 0
@@ -1074,6 +1152,43 @@ export default function YoMan() {
                 <span>👁️ {selected.vues||0} vue{(selected.vues||0)!==1?"s":""}</span>
               </div>
               <div className="mdesc">{selected.description}</div>
+
+              {/* NOTATION VENDEUR */}
+              <div className="rating-box">
+                <div className="rating-title">⭐ Notation du vendeur</div>
+                <div className="rating-avg">
+                  <span className="rating-avg-n">{avgRating(ratings)}</span>
+                  <div>
+                    <div className="stars">{[1,2,3,4,5].map(i=><span key={i}>{i<=Math.round(avgRating(ratings))?"⭐":"☆"}</span>)}</div>
+                    <div className="rating-count">{ratings.length} avis</div>
+                  </div>
+                </div>
+
+                {/* Donner un avis */}
+                {selected.userId !== user.uid && <>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--dark)",marginBottom:6}}>Votre avis :</div>
+                  <div className="stars" style={{marginBottom:8}}>
+                    {[1,2,3,4,5].map(i=>(
+                      <span key={i} className="star" onClick={()=>setMyRating(i)}>{i<=myRating?"⭐":"☆"}</span>
+                    ))}
+                  </div>
+                  <textarea className="rating-comment" placeholder="Laissez un commentaire (optionnel)..." value={myComment} onChange={e=>setMyComment(e.target.value)}/>
+                  <button className="fb" style={{marginTop:8,padding:"10px"}} onClick={()=>submitRating(selected.userId)}>Envoyer mon avis</button>
+                </>}
+
+                {/* Avis existants */}
+                {ratings.length > 0 && <div style={{marginTop:12}}>
+                  {ratings.slice(0,3).map(r=>(
+                    <div key={r.id} className="review-item">
+                      <div className="review-header">
+                        <span className="review-name">👤 {r.buyerName}</span>
+                        <span className="review-date">{[1,2,3,4,5].map(i=>i<=r.note?"⭐":"☆").join("")}</span>
+                      </div>
+                      {r.commentaire && <div className="review-text">{r.commentaire}</div>}
+                    </div>
+                  ))}
+                </div>}
+              </div>
               <div className="macts">
                 <button className="mclose" onClick={() => setSelected(null)}>Fermer</button>
                 <button className="mclose" style={{color:"#DC2626",borderColor:"#FCA5A5"}} onClick={()=>reportAd(selected)}>🚩 Signaler</button>
