@@ -180,7 +180,7 @@ const styles = `
   .bnav-post .bnav-icon { background:linear-gradient(135deg,var(--blue),var(--dark)); border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; font-size:24px; color:white; margin-top:-14px; box-shadow:0 4px 20px rgba(23,86,200,.5); }
 
   /* ── HERO ── */
-  .hero { min-height:86vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:80px 28px 60px; position:relative; overflow:hidden; }
+  .hero { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:80px 28px 80px; position:relative; overflow:hidden; }
   .hero-glow1 { position:absolute; top:-200px; left:50%; transform:translateX(-50%); width:900px; height:900px; background:radial-gradient(ellipse,rgba(23,86,200,.22) 0%,transparent 65%); pointer-events:none; }
   .hero-glow2 { position:absolute; bottom:-100px; left:15%; width:500px; height:500px; background:radial-gradient(ellipse,rgba(255,217,61,.07) 0%,transparent 65%); pointer-events:none; }
   .hero-glow3 { position:absolute; top:20%; right:5%; width:300px; height:300px; background:radial-gradient(ellipse,rgba(56,207,255,.08) 0%,transparent 65%); pointer-events:none; }
