@@ -1135,7 +1135,12 @@ export default function YoMan() {
             <div className="admin-title">🛡️ Panel Admin — YoMan!</div>
             <div className="admin-subtitle">Gestion de la marketplace</div>
           </div>
-          <button className="btn-o" onClick={()=>setPage("home")}>← Retour</button>
+          <div style={{display:"flex",gap:10}}>
+            <a href="/facebook-posts.html" target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.25)",borderRadius:10,padding:"8px 16px",color:"#fff",fontWeight:700,fontSize:13,textDecoration:"none",fontFamily:"Montserrat,sans-serif",cursor:"pointer",transition:"all .2s"}}>
+              📘 Visuels FB
+            </a>
+            <button className="btn-o" onClick={()=>setPage("home")}>← Retour</button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -1151,6 +1156,7 @@ export default function YoMan() {
           <button className={`admin-tab${adminTab==="annonces"?" on":""}`} onClick={()=>setAdminTab("annonces")}>📋 Annonces ({annonces.length})</button>
           <button className={`admin-tab${adminTab==="signalements"?" on":""}`} onClick={()=>setAdminTab("signalements")}>🚩 Signalements ({signalements.length})</button>
           <button className={`admin-tab${adminTab==="users"?" on":""}`} onClick={()=>setAdminTab("users")}>👥 Membres ({allUsers.length})</button>
+          <button className={`admin-tab${adminTab==="marketing"?" on":""}`} onClick={()=>setAdminTab("marketing")}>📘 Marketing</button>
         </div>
 
         {/* Annonces */}
@@ -1214,6 +1220,24 @@ export default function YoMan() {
                 </div>
               ))
             }
+          </div>
+        )}
+
+        {/* Marketing */}
+        {adminTab==="marketing" && (
+          <div className="admin-section">
+            <div className="admin-section-title">📘 Outils Marketing</div>
+            <div style={{padding:"28px 24px",display:"flex",flexDirection:"column",gap:20}}>
+              <div style={{background:"rgba(23,86,200,.08)",border:"1px solid rgba(23,86,200,.25)",borderRadius:16,padding:"24px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+                <div>
+                  <div style={{fontFamily:"Montserrat,sans-serif",fontWeight:800,fontSize:16,color:"var(--text)",marginBottom:6}}>📘 Visuels Facebook</div>
+                  <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>6 posts 1080×1080 prêts à publier — une fonctionnalité par visuel.<br/>Clic droit sur chaque image → Enregistrer.</div>
+                </div>
+                <a href="/facebook-posts.html" target="_blank" rel="noopener noreferrer" style={{flexShrink:0,display:"inline-flex",alignItems:"center",gap:8,background:"#1756C8",color:"#fff",fontFamily:"Montserrat,sans-serif",fontWeight:800,fontSize:14,padding:"12px 24px",borderRadius:12,textDecoration:"none",whiteSpace:"nowrap"}}>
+                  Ouvrir →
+                </a>
+              </div>
+            </div>
           </div>
         )}
       </div>
